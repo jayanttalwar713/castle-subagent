@@ -330,6 +330,53 @@ parallelizes only the leaves.
 This is the central claim of the submission, so §9 **measures** it rather than
 asserting it — there is a metric whose whole job is to falsify it.
 
+
+### Where this sits relative to the swarm post
+
+The brief recommends Prime Intellect's *On the Nature of the Swarm* as
+background. It argues that hierarchical agent trees bottleneck at the root —
+the root's context fills no matter how large the swarm gets, recreating the
+original problem one level up — and that the way out is peer-to-peer meshes
+coordinating through shared state rather than through a coordinator.
+
+**It reaches the same verdict on the brief's second sketch, by a different
+route.** The post's objection is that the root runs out of *context*; the
+objection above is that the root runs out of *throughput*, because it is doing
+inference on the critical path. Two different resources, the same structural
+fault: a component that cannot be replicated sits in the middle of everything.
+
+It also names the escape route this design took. The post recommends
+coordinating through shared state — git, issue trackers, things agents read and
+write without anyone holding the whole picture. The Sequencer is exactly that:
+shared state that is deliberately *stupid*. It has no context to fill because it
+never reads an answer, and no throughput ceiling because it never calls a model.
+So a star topology with a dumb hub avoids the bottleneck the post identifies,
+without needing a mesh to do it.
+
+**Where it criticises this design, it is right.** The post argues for persistent
+agents over disposable ones, because a sub-agent that forgets everything on
+completion forces redundant work on the follow-up. Workers here are strictly
+disposable — one per request-version, no memory. The follow-up case is patched
+rather than solved: a `REFERENCE` gets its parent's answer pasted into its
+prompt, which is the cheapest possible form of handover and loses everything the
+parent knew but did not say.
+
+The post's other idea points at concrete work this design has not done. It
+observes that agents specialise naturally — whoever looked at the frontend first
+becomes the frontend expert — and that routing should exploit that. Here workers
+are interchangeable, which is wasteful in a way the code can already see: a
+request is pinned to a data version (§8), so a worker that has just answered a
+question about a member's holdings is demonstrably cheaper for the *next*
+question about those holdings. Nothing routes on that. It is the single clearest
+piece of future work the post surfaces.
+
+> One honest caveat on scale. The post's mesh argument is about swarms of ten
+> thousand agents; this system runs a pool of three against one chat. At that
+> size a dumb hub is not a compromise, it is the right answer — coordination
+> costs nothing and a mesh would be ceremony. The argument starts to bite at a
+> scale this design would have to grow into, and §12 is honest that cross-chat
+> scheduling is not built.
+
 ### The Sequencer is a pure function
 
 > **Pure function** — code that takes input and returns output, touching
@@ -682,8 +729,19 @@ able to reject one and immediately know what breaks.
 
 ## 12. What is built, and what is only designed
 
-Five hours. The cut line is itself a design decision, so it is stated rather
-than hidden.
+The brief suggests this should take a few hours. The first pass was built to
+roughly that budget, against the cut line below.
+
+What came after was not planned. The fuzzer and the classifier eval each found
+things that *changed* the design rather than confirming it — four scheduling
+bugs, and the discovery that §4's confidence mechanism does not work — and
+following those took longer than the original build did. The cut line itself
+still holds: `MERGE`/`SPLIT`, `BOUNDED_REORDER`, and cross-chat scheduling are
+still not built, for the reasons given. What grew is the list of things that
+*are*.
+
+Stating that plainly seems better than implying a tidier process than the one
+that happened.
 
 ### Built
 

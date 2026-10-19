@@ -252,6 +252,34 @@ not written), **backpressure** (a busy day currently becomes an unbounded
 queue), **fair sharing across chats**, and **operability**. §15 answers the
 questions a reviewer is most likely to ask.
 
+## Reading the code
+
+Suggested order, shortest path to understanding the whole thing. The first two
+files are the system; everything else serves them.
+
+| # | File | Why it matters |
+|---|---|---|
+| 1 | [`model.py`](chatsched/model.py) | The vocabulary. A `Request`, the five relationships, the events in and the commands out. Nothing happens here, but nothing makes sense without it. |
+| 2 | [`sequencer.py`](chatsched/sequencer.py) | **The whole system.** `handle(event) → [commands]` — 593 lines, of which ~380 are code and the rest explain *why*. No imports that touch I/O. If you only read one file, read this one — every design claim in DESIGN.md is implemented here. |
+| 3 | [`policies.py`](chatsched/policies.py) | Three tiny classes. Shows how §3 turned ordering from structure into a swappable choice. |
+| 4 | [`invariants.py`](chatsched/invariants.py) | The nine properties, as code. The best summary of what "correct" means here. |
+| 5 | [`tests/test_fuzz.py`](tests/test_fuzz.py) | How the randomised testing works, and a docstring listing every bug it found. |
+| 6 | [`sim.py`](chatsched/sim.py) | The deterministic clock and the mock workers. Read it to see why replay is reproducible. |
+| 7 | [`llm.py`](chatsched/llm.py) / [`live.py`](chatsched/live.py) | The real models, and the asyncio runner. Same Sequencer, different driver. |
+| 8 | [`evaluate.py`](chatsched/evaluate.py) | The classifier measurement. Read `destructive_error` — it is where the §4 argument becomes arithmetic. |
+
+Skimmable: `delivery.py` (string formatting), `metrics.py` (arithmetic),
+`cli.py` (argparse), `depgraph.py` (~60 lines, but it only does three things).
+
+Three places where the reasoning is subtler than the code looks:
+
+- **`_settle()`** in `sequencer.py` — deliver, then admit, to a fixpoint. The
+  loop exists because delivering a parent can unblock a child.
+- **`_release_slot()`** — frees the pool slot only if *this* worker still owns
+  it. A superseded worker finishing late must not free its replacement's slot.
+- **`_snapshot_for()`** — the data version is a counter, not a clock reading,
+  because the Sequencer has to stay a pure function.
+
 ## Scope
 
 Five hours. What is deliberately designed-but-not-built — `MERGE`/`SPLIT`

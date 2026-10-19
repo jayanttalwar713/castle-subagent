@@ -1598,6 +1598,69 @@
         is a metric whose whole job is to falsify it.
       </p>
 
+
+      <h3>Where this sits relative to the swarm post</h3>
+
+      <p>
+        The brief recommends Prime Intellect&rsquo;s
+        <em>On the Nature of the Swarm</em> as background. It argues that
+        hierarchical agent trees bottleneck at the root &mdash; the root&rsquo;s
+        context fills no matter how large the swarm gets, recreating the original
+        problem one level up &mdash; and that the way out is peer-to-peer meshes
+        coordinating through shared state rather than through a coordinator.
+      </p>
+
+      <p>
+        <strong>It reaches the same verdict on the brief&rsquo;s second sketch,
+        by a different route.</strong> The post&rsquo;s objection is that the root
+        runs out of <em>context</em>; the objection above is that the root runs out
+        of <em>throughput</em>, because it is doing inference on the critical path.
+        Two different resources, the same structural fault: a component that cannot
+        be replicated sits in the middle of everything.
+      </p>
+
+      <p>
+        It also names the escape route this design took. The post recommends
+        coordinating through shared state &mdash; git, issue trackers, things agents
+        read and write without anyone holding the whole picture. The Sequencer is
+        exactly that: shared state that is deliberately <em>stupid</em>. It has no
+        context to fill because it never reads an answer, and no throughput ceiling
+        because it never calls a model. So a star topology with a dumb hub avoids
+        the bottleneck the post identifies, without needing a mesh to do it.
+      </p>
+
+      <p>
+        <strong>Where it criticises this design, it is right.</strong> The post
+        argues for persistent agents over disposable ones, because a sub-agent that
+        forgets everything on completion forces redundant work on the follow-up.
+        Workers here are strictly disposable &mdash; one per request-version, no
+        memory. The follow-up case is patched rather than solved: a
+        <code>REFERENCE</code> gets its parent&rsquo;s answer pasted into its prompt,
+        which is the cheapest possible form of handover and loses everything the
+        parent knew but did not say.
+      </p>
+
+      <p>
+        The post&rsquo;s other idea points at concrete work this design has not done.
+        It observes that agents specialise naturally &mdash; whoever looked at the
+        frontend first becomes the frontend expert &mdash; and that routing should
+        exploit that. Here, workers are interchangeable, which is wasteful in a way
+        the code can already see: a request is pinned to a data version (§&nbsp;08),
+        so a worker that has just answered a question about a member&rsquo;s holdings
+        is demonstrably cheaper for the <em>next</em> question about those holdings.
+        Nothing routes on that. It is the single clearest piece of future work the
+        post surfaces.
+      </p>
+
+      <div class="note">
+        One honest caveat on scale. The post&rsquo;s mesh argument is about swarms of
+        ten thousand agents; this system runs a pool of three against one chat. At
+        that size a dumb hub is not a compromise, it is the right answer &mdash;
+        coordination costs nothing and a mesh would be ceremony. The argument starts
+        to bite at a scale this design would have to grow into, and §&nbsp;12 is
+        honest that cross-chat scheduling is not built.
+      </div>
+
       <h3>The Sequencer is a pure function</h3>
 
       <div class="note">
@@ -2304,9 +2367,25 @@
     <section id="s12">
       <h2><span class="num">&sect; 12</span>What is built, and what is only designed</h2>
 
+            <p>
+        The brief suggests this should take a few hours. The first pass was built to
+        roughly that budget, against the cut line below.
+      </p>
+
       <p>
-        Five hours. The cut line is itself a design decision, so it is stated rather than
-        hidden.
+        What came after was not planned. The fuzzer and the classifier eval each
+        found things that <em>changed</em> the design rather than confirming it
+        &mdash; four scheduling bugs, and the discovery that §&nbsp;04&rsquo;s
+        confidence mechanism does not work &mdash; and following those took longer
+        than the original build did. The cut line itself still holds:
+        <code>MERGE</code>/<code>SPLIT</code>, <code>BOUNDED_REORDER</code> and
+        cross-chat scheduling are still not built, for the reasons given. What grew
+        is the list of things that <em>are</em>.
+      </p>
+
+      <p>
+        Stating that plainly seems better than implying a tidier process than the
+        one that happened.
       </p>
 
       <div class="scope">
