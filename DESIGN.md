@@ -207,9 +207,43 @@ matters is making sure it is wrong in the **recoverable** direction:
 
 The second failure is recoverable and the first is not. So the classifier is
 **biased toward `NEW`**: each relationship has a confidence threshold it must
-clear, the destructive ones (`CANCEL`, and `AMEND` that replaces the premise)
-have a higher bar than the additive ones, and anything below its threshold
-falls back to `NEW`.
+clear, the destructive ones have a higher bar, and anything below its
+threshold falls back to `NEW`.
+
+### Measuring that, and finding it does not work
+
+The argument above is sound. The thresholds implementing it — `0.75` and
+`0.50` — were invented, so §10 measures them against a labelled set. The
+result is a negative one about this design:
+
+> **Self-reported confidence barely separates right answers from wrong ones.**
+> Across 152 observations the mean confidence is 0.93 when correct and 0.85
+> when wrong — and mistakes occur as high as 0.95. Sweeping the threshold from
+> 0 to 0.90 does not reduce destroyed questions at all; it only adds redundant
+> ones. The only setting that helps is 0.95, which rejects 28 predictions to
+> save 5.
+
+A threshold cannot buy this asymmetry, because legitimate amendments and
+mistaken ones arrive at the same confidence. Two things replace it:
+
+**A signal that is not confidence.** Whether the message *names what it refers
+to* separates them cleanly. "Never mind the Taiwan one" names its target; a
+bare "no" — quite possibly aimed at another person in the chat — does not. So
+a `CANCEL` whose message names nothing **asks instead of acting**, and that
+costs no parked state: if they meant it, they say so again, and the reply
+names its target by construction. `CANCEL` precision is 1.00 with this in
+place.
+
+**Fixing the error the measurement actually found.** The dominant failure was
+not over-cancelling but **over-merging** — reaching for `AMEND` and
+`DUPLICATE` where the honest answer was `NEW`. Telling the classifier about
+that specific bias, and that topical similarity is not evidence of
+relatedness, cut destroyed questions from 9 to 6 and `DUPLICATE`→`AMEND`
+errors from 4 to 1.
+
+The thresholds stay, because they cost little and catch the genuinely
+low-confidence tail. They are no longer load-bearing, and the doc no longer
+pretends they are.
 
 Because the classifier is the highest-risk component in the system, every
 decision it makes — proposed relationship, confidence, target, and whether a
@@ -529,6 +563,30 @@ as prose that asserts them:
 | `attribution` | A policy that promises a requote shipping without one |
 | `pool_bound` | More workers in flight than the pool allows |
 | `tokens_accounted` | Shipping an answer that no worker ever actually computed |
+
+### Measuring the classifier
+
+Everything above tests the *scheduler*. The classifier needs a different
+instrument, because its failures are judgements rather than bugs.
+
+`python -m chatsched eval` runs 38 labelled messages — each against a
+realistic live request set, 14 of them marked genuinely ambiguous — through
+real Haiku and reports per-relationship precision and recall, a confusion
+matrix, and the thing §4 actually claims: **which direction the errors go.**
+
+Two measurement details matter more than the headline number:
+
+- **It repeats.** The classifier is not deterministic; identical runs score
+  between 89% and 97%. A single pass is an anecdote, so `--repeats` runs the
+  whole set several times and reports the spread.
+- **It separates the hard cases.** A good score on "never mind the Taiwan one"
+  hides a bad one on "no". Clear-cut and ambiguous cases are reported apart.
+
+The labels are my judgement, which is the honest limitation: this measures
+agreement with me, not ground truth.
+
+What it found is in §4, and it changed the design — which is the point of
+building it rather than asserting the thresholds were fine.
 
 ### Randomised testing
 

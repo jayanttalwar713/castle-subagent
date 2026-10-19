@@ -128,7 +128,9 @@ async def _main(
             return " ".join(change for _v, change in pending)
 
         try:
-            text, tokens, _results = await worker.answer(cmd.spec, checkpoint)
+            text, tokens, _results = await worker.answer(
+                cmd.spec, checkpoint, cmd.retained_tool_results
+            )
         except asyncio.CancelledError:
             await events.put(
                 Failed(run.request_id, run.version, "aborted", 0, now())

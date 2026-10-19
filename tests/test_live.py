@@ -68,9 +68,11 @@ class FakeWorker:
         self.fail = fail
         self.changes_seen: list[str] = []
         self.specs: list[str] = []
+        self.retained_seen: list[tuple] = []
 
-    async def answer(self, spec, checkpoint):
+    async def answer(self, spec, checkpoint, retained=()):
         self.specs.append(spec)
+        self.retained_seen.append(tuple(retained))
         if self.fail:
             raise RuntimeError("worker exploded")
         for phase, results in (
@@ -214,3 +216,20 @@ async def test_an_empty_run_refuses_to_claim_invariants_hold(fakes):
     """Zero requests is not zero violations."""
     code = await run([])
     assert code == 2
+
+
+async def test_retained_tool_results_reach_the_worker_in_live_mode(fakes):
+    """The Sequencer keeps tool results across a premise-preserving amendment
+    (§7c). They have to actually arrive at the worker — the simulator honoured
+    this and live mode silently did not, so the "0% wasted" headline was a
+    property of the mock.
+    """
+    _triage, worker = fakes
+    code = await run([
+        message("taiwan exposure", label="q"),
+        # After the tool result is back (3*STAGE) but before the run ends.
+        message("also south china sea", at=STAGE * 3.4, rel="AMEND", target="q"),
+    ])
+    assert code == 0
+    assert len(worker.specs) == 2, "a restart was expected at this stage"
+    assert worker.retained_seen[-1], "the restart re-fetched instead of reusing"

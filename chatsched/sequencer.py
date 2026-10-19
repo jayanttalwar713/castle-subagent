@@ -116,6 +116,11 @@ class Sequencer:
     # -- message handling --------------------------------------------------
 
     def _on_classified(self, ev: Classified) -> list[Command]:
+        if ev.relationship is Relationship.IGNORE:
+            # Not a request. Creating one would acknowledge a thank-you and
+            # spend a worker answering it.
+            return []
+
         target = self.requests.get(ev.target_id) if ev.target_id else None
 
         # A relationship that needs a target but lost it (classifier error, or
@@ -151,7 +156,9 @@ class Sequencer:
 
         stage = target.stage
         running_version = self._in_flight.get(target.id)
-        target.spec = self._merge_spec(target.spec, ev.text, ev.preserves_premise)
+        target.spec = self._merge_spec(
+            target.spec, ev.text, ev.preserves_premise, ev.rewritten_spec
+        )
         target.version += 1
         if not ev.preserves_premise:
             # The premise changed, so the research is worthless (§7c).
@@ -188,7 +195,9 @@ class Sequencer:
     def _reopen(self, ev: Classified, target: Request) -> list[Command]:
         """Amend a request that already delivered: re-run it and ship either an
         addendum or a visible replacement notice."""
-        target.spec = self._merge_spec(target.spec, ev.text, ev.preserves_premise)
+        target.spec = self._merge_spec(
+            target.spec, ev.text, ev.preserves_premise, ev.rewritten_spec
+        )
         target.version += 1
         target.stage = Stage.QUEUED
         self._invalidate_pending(target)
@@ -200,6 +209,23 @@ class Sequencer:
         return [self._deliver(target, DeliveryKind.AMEND_ACK, to=(ev.author,))]
 
     def _cancel(self, ev: Classified, target: Request) -> list[Command]:
+        if not ev.names_target and not target.is_terminal:
+            # Measured: confidence does not separate a real "never mind the
+            # Taiwan one" from a bare "no" that was aimed at another person in
+            # the chat — both arrive around 0.92-0.95, so no threshold can
+            # tell them apart (§4). What *does* separate them is whether the
+            # message names what it refers to. When it does not, ask.
+            #
+            # Asking needs no parked state: if they meant it, they say so
+            # again, and that reply names its target by construction.
+            return [
+                self._deliver(
+                    target,
+                    DeliveryKind.CONFIRM_CANCEL,
+                    to=(ev.author,),
+                    body="stop working on this?",
+                )
+            ]
         if target.stage is Stage.DELIVERED:
             return [
                 self._deliver(target, DeliveryKind.ALREADY_ANSWERED, to=(ev.author,))
@@ -479,7 +505,21 @@ class Sequencer:
         return req.version == version
 
     @staticmethod
-    def _merge_spec(spec: str, change: str, preserves_premise: bool) -> str:
+    def _merge_spec(
+        spec: str,
+        change: str,
+        preserves_premise: bool,
+        rewritten: str | None = None,
+    ) -> str:
+        """The question as it now stands.
+
+        Prefer triage's rewrite: it read the original and the change together
+        and can state the result. Concatenation is the fallback, and it is a
+        poor one — "How did my book do in Q2? sorry I meant Q3 not Q2" hands
+        the worker a self-contradiction and hopes it picks the right half.
+        """
+        if rewritten:
+            return rewritten.strip()
         return f"{spec} {change}".strip() if preserves_premise else change
 
     def _deliver(

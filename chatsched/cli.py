@@ -126,6 +126,26 @@ def cmd_live(args) -> int:
     return run_live(messages, title, args.policy, args.pool_size, args.explain)
 
 
+def cmd_eval(args) -> int:
+    """Measure the classifier rather than asserting things about it (§10)."""
+    import asyncio
+
+    from .evaluate import load_cases, render, run_eval
+
+    _load_dotenv()
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        print("ANTHROPIC_API_KEY is not set; the eval needs real model calls.",
+              file=sys.stderr)
+        return 2
+
+    cases = load_cases()
+    print(f"evaluating triage on {len(cases)} labelled cases "
+          f"({sum(1 for c in cases if c.hard)} marked genuinely ambiguous)…")
+    report = asyncio.run(run_eval(cases, repeats=args.repeats))
+    print(render(report, show_errors=not args.quiet))
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="chatsched")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -154,6 +174,14 @@ def main(argv: list[str] | None = None) -> int:
     p_live.add_argument("--explain", action="store_true",
                         help="print every triage decision and its confidence")
     p_live.set_defaults(func=cmd_live)
+
+    p_eval = sub.add_parser("eval", help="measure the triage classifier")
+    p_eval.add_argument("--repeats", type=int, default=1,
+                        help="run the whole set N times; the classifier is "
+                             "not deterministic and a single pass is noisy")
+    p_eval.add_argument("--quiet", action="store_true",
+                        help="summary only, without the per-case disagreements")
+    p_eval.set_defaults(func=cmd_eval)
 
     args = parser.parse_args(argv)
     return args.func(args)

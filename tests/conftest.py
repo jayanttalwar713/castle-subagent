@@ -42,6 +42,8 @@ def msg(
     target: str | None = None,
     preserves: bool = True,
     member: str | None = None,
+    rewritten: str | None = None,
+    names_target: bool = True,
 ) -> Classified:
     return Classified(
         msg_id=f"m-{text[:8]}",
@@ -52,6 +54,8 @@ def msg(
         member=member,
         target_id=target,
         preserves_premise=preserves,
+        rewritten_spec=rewritten,
+        names_target=names_target,
     )
 
 

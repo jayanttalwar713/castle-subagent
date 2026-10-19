@@ -33,6 +33,8 @@ class InboundMessage:
     target_label: str | None = None
     relationship: str | None = None
     preserves_premise: bool = True
+    rewritten_spec: str | None = None
+    names_target: bool = True
 
 
 class Triage(Protocol):
@@ -90,6 +92,8 @@ class ScriptedTriage:
             member=msg.member,
             target_id=target,
             preserves_premise=msg.preserves_premise,
+            rewritten_spec=msg.rewritten_spec,
+            names_target=msg.names_target,
             confidence=1.0,
             reasoning="scripted fixture",
         )

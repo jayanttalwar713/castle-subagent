@@ -17,6 +17,7 @@ _PHRASING: dict[DeliveryKind, str] = {
     DeliveryKind.ACK: "on it",
     DeliveryKind.AMEND_ACK: "updated, still working",
     DeliveryKind.CANCEL_ACK: "dropped",
+    DeliveryKind.CONFIRM_CANCEL: "did you mean",
     DeliveryKind.ALREADY_ANSWERED: "already answered that one",
     DeliveryKind.DROPPED_NOTICE: "couldn't answer",
     DeliveryKind.ANSWER: "",

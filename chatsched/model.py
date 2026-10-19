@@ -24,11 +24,19 @@ class Relationship(str, Enum):
     CANCEL = "CANCEL"
     DUPLICATE = "DUPLICATE"
     REFERENCE = "REFERENCE"
+    #: Not a request at all — "thanks!", "haha", a side conversation between
+    #: two people. Most traffic in a busy group chat is this, and without the
+    #: class every one of them dispatches an expensive worker.
+    IGNORE = "IGNORE"
 
 
 #: Relationships that can destroy work if the classifier is wrong. These
 #: require higher confidence than the additive ones (DESIGN.md §4).
-DESTRUCTIVE = frozenset({Relationship.CANCEL})
+#:
+#: IGNORE belongs here for the same reason CANCEL does: a real question
+#: misclassified as chit-chat is silently never answered, and nobody finds
+#: out. The reverse — answering a "thanks!" — is merely embarrassing.
+DESTRUCTIVE = frozenset({Relationship.CANCEL, Relationship.IGNORE})
 
 
 class Stage(str, Enum):
@@ -147,6 +155,16 @@ class Classified:
     relationship: Relationship
     member: str | None = None
     target_id: str | None = None
+    #: For AMEND: the question as it now stands, resolved by triage. Triage
+    #: has already read both the original and the change, so it can state the
+    #: result — far better than concatenating them and hoping the worker
+    #: untangles "How did my book do in Q2? sorry I meant Q3 not Q2".
+    rewritten_spec: str | None = None
+    #: Does the message itself identify what it refers to ("never mind the
+    #: Taiwan one") or does it rely entirely on context ("no", "stop")?
+    #: Measured to be a far better guard than confidence for destructive
+    #: relationships — see DESIGN.md §4.
+    names_target: bool = True
     preserves_premise: bool = True
     confidence: float = 1.0
     #: True when triage wanted something else but fell below the confidence
@@ -228,6 +246,8 @@ class DeliveryKind(str, Enum):
     ADDENDUM = "ADDENDUM"
     SUPERSEDE = "SUPERSEDE"
     CANCEL_ACK = "CANCEL_ACK"
+    #: Ask before destroying work the message did not clearly point at.
+    CONFIRM_CANCEL = "CONFIRM_CANCEL"
     ALREADY_ANSWERED = "ALREADY_ANSWERED"
     DROPPED_NOTICE = "DROPPED_NOTICE"
     AMEND_ACK = "AMEND_ACK"

@@ -491,3 +491,133 @@ def test_a_chat_with_no_member_context_behaves_as_before():
     h.send(msg("same question", author="cara", at=1, rel=Relationship.DUPLICATE, target=rid))
     assert len(h.seq.requests) == 1
     assert h.seq.requests[rid].askers == ["ana", "cara"]
+
+
+# ------------------------------------------------- not a request at all --
+
+
+def test_chitchat_creates_no_request_and_spends_nothing():
+    """Most traffic in a busy group chat is not a request. Without the IGNORE
+    class, "thanks!!" acknowledges itself and dispatches a worker (§4)."""
+    h = Harness()
+    out = h.send(msg("thanks!! 🙏", author="ben", at=1, rel=Relationship.IGNORE))
+
+    assert out == []
+    assert h.seq.requests == {}
+    assert h.dispatches() == []
+
+
+def test_ignoring_does_not_disturb_work_in_flight():
+    h = Harness()
+    rid = h.ask("taiwan exposure?", author="ana")
+    h.send(msg("haha nice", author="ben", at=1, rel=Relationship.IGNORE))
+
+    assert h.seq.requests[rid].stage is Stage.PLANNING
+    assert h.seq.requests[rid].version == 1
+    h.finish(rid, at=5)
+    assert h.delivered(DeliveryKind.ANSWER)
+
+
+def test_an_unsure_ignore_answers_the_question_instead_of_dropping_it():
+    """IGNORE is destructive — a real question silently never answered — so
+    it carries the high threshold and degrades to NEW (§4)."""
+    from chatsched.triage import apply_confidence_bias
+
+    used, fell_back = apply_confidence_bias(Relationship.IGNORE, 0.6)
+    assert used is Relationship.NEW and fell_back
+
+
+# ------------------------------------------- the amended question itself --
+
+
+def test_concatenating_an_amendment_produces_a_contradiction():
+    """The fallback path, shown so the fix has something to be better than."""
+    h = Harness()
+    rid = h.ask("How did my book do in Q2?", author="ana")
+    h.send(msg("sorry I meant Q3 not Q2", at=1, rel=Relationship.AMEND, target=rid))
+    h.abort_landed(rid)
+
+    spec = h.seq.requests[rid].spec
+    assert "Q2" in spec and "Q3" in spec, "both questions are in the spec at once"
+
+
+def test_triage_rewriting_the_question_removes_the_contradiction():
+    """Triage read the original and the change together, so it can state the
+    result. The worker should receive one question, not two."""
+    h = Harness()
+    rid = h.ask("How did my book do in Q2?", author="ana")
+    h.send(msg("sorry I meant Q3 not Q2", at=1, rel=Relationship.AMEND, target=rid,
+               rewritten="How did my book do in Q3?"))
+    h.abort_landed(rid)
+
+    spec = h.seq.requests[rid].spec
+    assert spec == "How did my book do in Q3?"
+    assert "Q2" not in spec
+    assert h.dispatches(rid)[-1].spec == "How did my book do in Q3?"
+
+
+def test_a_rewrite_is_used_for_a_premise_replacement_too():
+    h = Harness()
+    rid = h.ask("taiwan exposure?", author="ana")
+    h.send(msg("actually inflation", at=1, rel=Relationship.AMEND, target=rid,
+               preserves=False, rewritten="What is my exposure to inflation?"))
+    h.abort_landed(rid)
+    assert h.seq.requests[rid].spec == "What is my exposure to inflation?"
+
+
+# ------------------------------------- asking rather than guessing -------
+
+
+def test_a_cancel_that_names_nothing_asks_instead_of_destroying():
+    """Measured, not assumed: confidence does not separate "never mind the
+    Taiwan one" from a bare "no" aimed at another person — both land around
+    0.92-0.95, so no threshold can tell them apart. Referential explicitness
+    does (§4)."""
+    h = Harness()
+    rid = h.ask("taiwan exposure?", author="ana")
+
+    h.send(msg("no", author="ana", at=1, rel=Relationship.CANCEL,
+               target=rid, names_target=False))
+
+    assert h.delivered(DeliveryKind.CONFIRM_CANCEL)
+    assert h.seq.requests[rid].stage is not Stage.DROPPED, "work was destroyed on a guess"
+    assert h.of(Abort) == []
+
+
+def test_a_cancel_that_names_its_target_is_obeyed_immediately():
+    """Asking every time would be its own failure. The common case — a cancel
+    that says what it cancels — must not cost a round trip."""
+    h = Harness()
+    rid = h.ask("taiwan exposure?", author="ana")
+
+    h.send(msg("never mind the Taiwan one", author="ana", at=1,
+               rel=Relationship.CANCEL, target=rid, names_target=True))
+
+    assert h.delivered(DeliveryKind.CANCEL_ACK)
+    assert h.delivered(DeliveryKind.CONFIRM_CANCEL) == []
+    assert h.seq.requests[rid].stage is Stage.DROPPED
+
+
+def test_confirming_needs_no_parked_state():
+    """The confirmation costs no new state machine: if they meant it, they
+    say so again — and that reply names its target by construction."""
+    h = Harness()
+    rid = h.ask("taiwan exposure?", author="ana")
+    h.send(msg("no", author="ana", at=1, rel=Relationship.CANCEL,
+               target=rid, names_target=False))
+
+    h.send(msg("yes, cancel the taiwan one", author="ana", at=2,
+               rel=Relationship.CANCEL, target=rid, names_target=True))
+
+    assert h.seq.requests[rid].stage is Stage.DROPPED
+
+
+def test_an_ambiguous_cancel_of_an_answered_question_still_just_acknowledges():
+    """Nothing is at risk once the answer has shipped, so do not ask."""
+    h = Harness()
+    rid = h.ask("q", author="ana")
+    h.finish(rid, at=3)
+    h.send(msg("no", author="ana", at=4, rel=Relationship.CANCEL,
+               target=rid, names_target=False))
+    assert h.delivered(DeliveryKind.ALREADY_ANSWERED)
+    assert h.delivered(DeliveryKind.CONFIRM_CANCEL) == []

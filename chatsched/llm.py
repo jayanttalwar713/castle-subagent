@@ -46,6 +46,16 @@ Relationships:
   REFERENCE  A new request whose specification depends on a prior request's
              ANSWER, e.g. "and the second biggest?" after "what is my biggest
              position?". Set target_id to the request it depends on.
+  IGNORE     Not a request at all. Thanks, acknowledgements, reactions, jokes,
+             two people talking to each other rather than to you. Most traffic
+             in a busy group chat is this.
+
+For AMEND, set rewritten_question to the question as it NOW stands, resolved. You have read both the original and the change, so state the result rather than leaving them to be concatenated: "How did my book do in Q2?" plus "sorry I meant Q3" becomes "How did my book do in Q3?". Leave it empty for every other relationship.
+
+Set names_target to whether the message ITSELF identifies what it refers to. \
+"never mind the Taiwan one" names it; a bare "no", "stop" or "wait" does not \
+and might not even be addressed to you. This matters more than your \
+confidence: we would rather ask than destroy somebody's question.
 
 For AMEND, also decide preserves_premise:
   true   the change widens or narrows the same question, so research already
@@ -53,10 +63,23 @@ For AMEND, also decide preserves_premise:
   false  the change replaces the premise, so prior research is worthless
          ("actually I meant inflation, not Taiwan")
 
-Confidence matters. A NEW question misclassified as AMEND silently destroys \
-somebody's question; an AMEND misclassified as NEW merely produces a \
-redundant answer. When you are unsure, say so in `confidence` and prefer NEW. \
-Only claim high confidence on CANCEL when the message plainly asks to stop.
+You will be tempted to relate a message to work already in flight. Measured \
+against a labelled set, that temptation is this classifier's dominant error: \
+it reaches for AMEND and DUPLICATE when the honest answer is NEW. Relating a \
+message to an existing request is a claim that needs evidence in the message \
+itself — a demonstrative ("that", "it", "the Taiwan one"), a correction \
+("sorry, I meant"), or wording that only makes sense as a follow-up. Topical \
+similarity is not evidence: two questions about the same holding are usually \
+two questions. When nothing in the message points at existing work, answer \
+NEW.
+
+Confidence matters, and the errors are not symmetric. A NEW question \
+misclassified as AMEND silently destroys somebody's question; a real question \
+misclassified as IGNORE is never answered and nobody finds out. An AMEND or \
+IGNORE misclassified as NEW merely produces a redundant answer. When you are \
+unsure, say so in `confidence` and prefer NEW. Claim high confidence on CANCEL \
+only when the message plainly asks to stop, and on IGNORE only when the \
+message plainly asks for nothing.
 """
 
 TRIAGE_SCHEMA = {
@@ -64,12 +87,14 @@ TRIAGE_SCHEMA = {
     "properties": {
         "relationship": {
             "type": "string",
-            "enum": ["NEW", "AMEND", "CANCEL", "DUPLICATE", "REFERENCE"],
+            "enum": ["NEW", "AMEND", "CANCEL", "DUPLICATE", "REFERENCE", "IGNORE"],
         },
         # Empty string rather than null: simpler to validate, and the caller
         # treats "" as "no target".
         "target_id": {"type": "string"},
         "preserves_premise": {"type": "boolean"},
+        "rewritten_question": {"type": "string"},
+        "names_target": {"type": "boolean"},
         "confidence": {"type": "number"},
         "reasoning": {"type": "string"},
     },
@@ -77,8 +102,10 @@ TRIAGE_SCHEMA = {
         "relationship",
         "target_id",
         "preserves_premise",
+        "rewritten_question",
         "confidence",
         "reasoning",
+        "names_target",
     ],
     "additionalProperties": False,
 }
@@ -152,6 +179,8 @@ class LLMTriage:
             member=msg.member,
             target_id=target,
             preserves_premise=bool(parsed["preserves_premise"]),
+            rewritten_spec=parsed.get("rewritten_question") or None,
+            names_target=bool(parsed.get("names_target", True)),
             confidence=confidence,
             fallback_applied=fell_back,
             reasoning=parsed["reasoning"],
@@ -194,6 +223,11 @@ HOLDINGS_TOOL = {
 }
 
 
+#: Stands in for the tool call whose result we carried over from a previous
+#: version of the same request.
+_RETAINED_TOOL_USE_ID = "toolu_retained"
+
+
 def load_portfolio() -> dict:
     return json.loads((FIXTURES / "portfolio.json").read_text())
 
@@ -207,7 +241,9 @@ class LLMWorker:
         self.client = client or AsyncAnthropic()
         self.portfolio = load_portfolio()
 
-    async def answer(self, spec: str, checkpoint) -> tuple[str, int, list[str]]:
+    async def answer(
+        self, spec: str, checkpoint, retained: tuple[str, ...] = ()
+    ) -> tuple[str, int, list[str]]:
         """Run the agent loop.
 
         `checkpoint(phase, results=())` is an async callable invoked at each
@@ -217,9 +253,42 @@ class LLMWorker:
         checkpoints rather than preemptively (§7a): nothing is torn apart
         mid-API-call.
         """
-        messages: list[dict] = [{"role": "user", "content": spec}]
         tokens = 0
-        tool_results: list[str] = []
+        tool_results: list[str] = list(retained)
+
+        if retained:
+            # The Sequencer kept the tool results from the previous version of
+            # this question because the change preserved its premise (§7c).
+            # Seed them as an already-completed tool call so the model drafts
+            # against them instead of paying for the lookup twice. Without
+            # this the retention is bookkeeping that saves nothing.
+            messages: list[dict] = [
+                {"role": "user", "content": spec},
+                {
+                    "role": "assistant",
+                    "content": [
+                        {
+                            "type": "tool_use",
+                            "id": _RETAINED_TOOL_USE_ID,
+                            "name": HOLDINGS_TOOL["name"],
+                            "input": {"reason": "carried over from the earlier "
+                                                "version of this question"},
+                        }
+                    ],
+                },
+                {
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "tool_result",
+                            "tool_use_id": _RETAINED_TOOL_USE_ID,
+                            "content": retained[0],
+                        }
+                    ],
+                },
+            ]
+        else:
+            messages = [{"role": "user", "content": spec}]
 
         for _ in range(4):  # bounded: plan -> tool -> draft, with slack
             if (change := await checkpoint("before_model")) is not None:

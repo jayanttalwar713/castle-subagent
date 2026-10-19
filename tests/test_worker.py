@@ -165,3 +165,36 @@ async def test_the_tool_description_says_when_to_call_it():
     description = HOLDINGS_TOOL["description"].lower()
     assert "call this" in description or "whenever" in description
     assert HOLDINGS_TOOL["input_schema"]["required"] == ["reason"]
+
+
+async def test_retained_tool_results_are_reused_instead_of_refetched():
+    """§7c, in live mode. The Sequencer keeps tool results across a
+    premise-preserving amendment — but retention saves nothing unless the
+    worker actually drafts against them rather than paying again.
+    """
+    worker = LLMWorker(client=FakeClient([_Reply([_Text("Still ~19%.")], "end_turn")]))
+    carried = json.dumps(load_portfolio())
+
+    text, _tokens, results = await worker.answer(
+        "taiwan exposure, also south china sea", await collect([]), (carried,)
+    )
+
+    # One model call, and no tool round trip: the expensive step was skipped.
+    calls = worker.client.messages.calls
+    assert len(calls) == 1
+    assert results == [carried]
+
+    # The carried result is presented as an already-completed tool call.
+    seeded = calls[0]["messages"]
+    assert seeded[1]["role"] == "assistant"
+    assert seeded[1]["content"][0]["type"] == "tool_use"
+    assert seeded[2]["content"][0]["type"] == "tool_result"
+    assert seeded[2]["content"][0]["content"] == carried
+
+
+async def test_without_retained_results_the_tool_is_still_called():
+    """The other half of the claim: the saving comes from retention, not from
+    the worker having quietly stopped looking things up."""
+    worker = LLMWorker(client=FakeClient(tool_then_answer()))
+    await worker.answer("taiwan exposure", await collect([]))
+    assert len(worker.client.messages.calls) == 2

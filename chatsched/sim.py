@@ -288,6 +288,8 @@ def load_scenario(path: str | Path) -> tuple[list[InboundMessage], dict[str, Wor
             target_label=m.get("target"),
             relationship=m.get("rel", "NEW"),
             preserves_premise=bool(m.get("preserves_premise", True)),
+            rewritten_spec=m.get("rewritten"),
+            names_target=bool(m.get("names_target", True)),
         )
         for i, m in enumerate(raw["messages"])
     ]

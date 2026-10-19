@@ -1,0 +1,194 @@
+{
+  "description": [
+    "A labelled set for measuring the triage classifier (DESIGN.md §4, §10).",
+    "",
+    "Deliberately weighted toward hard cases. Easy ones inflate accuracy and",
+    "tell you nothing; what matters is the error *direction* on the messages a",
+    "human would hesitate over. The `hard` flag marks cases where a reasonable",
+    "person could label it differently — those are reported separately so a",
+    "good score on the clear cases cannot hide a bad one on the rest.",
+    "",
+    "Labels are my judgement, which is itself a limitation: this measures",
+    "agreement with me, not ground truth."
+  ],
+
+  "contexts": {
+    "empty": [],
+
+    "one_running": [
+      {
+        "id": "r1",
+        "spec": "What's my exposure to a Taiwan escalation?",
+        "askers": ["ana"],
+        "member": "ana",
+        "stage": "TOOL_CALL",
+        "answer": null
+      }
+    ],
+
+    "two_running": [
+      {
+        "id": "r1",
+        "spec": "What's my exposure to a Taiwan escalation?",
+        "askers": ["ana"],
+        "member": "ana",
+        "stage": "TOOL_CALL",
+        "answer": null
+      },
+      {
+        "id": "r2",
+        "spec": "How did my book do in Q2?",
+        "askers": ["ben"],
+        "member": "ben",
+        "stage": "PLANNING",
+        "answer": null
+      }
+    ],
+
+    "one_answered": [
+      {
+        "id": "r1",
+        "spec": "Is NVDA still my biggest position?",
+        "askers": ["ben"],
+        "member": "ben",
+        "stage": "DELIVERED",
+        "answer": "No — QQQ is your largest line at $449k. On look-through NVDA is your biggest single name at ~$259k."
+      }
+    ],
+
+    "answered_and_running": [
+      {
+        "id": "r1",
+        "spec": "Is NVDA still my biggest position?",
+        "askers": ["ben"],
+        "member": "ben",
+        "stage": "DELIVERED",
+        "answer": "No — QQQ is your largest line at $449k; NVDA is the biggest single name at ~$259k."
+      },
+      {
+        "id": "r2",
+        "spec": "What's my exposure to a Taiwan escalation?",
+        "askers": ["ana"],
+        "member": "ana",
+        "stage": "DRAFTING",
+        "answer": null
+      }
+    ]
+  },
+
+  "cases": [
+    { "context": "empty", "author": "ana", "member": "ana",
+      "text": "What's my exposure to a Taiwan escalation?", "expect": "NEW" },
+    { "context": "empty", "author": "ben", "member": "ben",
+      "text": "how much cash am I sitting on?", "expect": "NEW" },
+    { "context": "two_running", "author": "cara", "member": "cara",
+      "text": "Am I overweight energy versus the S&P?", "expect": "NEW" },
+    { "context": "one_running", "author": "ben", "member": "ben",
+      "text": "separately — what's my duration risk if rates stay high?", "expect": "NEW" },
+    { "context": "one_answered", "author": "ben", "member": "ben",
+      "text": "different question: should I be worried about my energy weight?", "expect": "NEW" },
+
+    { "context": "one_running", "author": "ana", "member": "ana",
+      "text": "Actually make that Taiwan or South China Sea.", "expect": "AMEND",
+      "expect_target": "r1", "preserves_premise": true },
+    { "context": "one_running", "author": "ana", "member": "ana",
+      "text": "also include my ETF look-through please", "expect": "AMEND",
+      "expect_target": "r1", "preserves_premise": true },
+    { "context": "two_running", "author": "ben", "member": "ben",
+      "text": "sorry I meant Q3 not Q2", "expect": "AMEND",
+      "expect_target": "r2", "preserves_premise": true },
+    { "context": "one_running", "author": "ana", "member": "ana",
+      "text": "can you keep it to the top 5 positions", "expect": "AMEND",
+      "expect_target": "r1", "preserves_premise": true },
+
+    { "context": "one_running", "author": "ana", "member": "ana",
+      "text": "actually forget Taiwan, I meant inflation", "expect": "AMEND",
+      "expect_target": "r1", "preserves_premise": false },
+    { "context": "two_running", "author": "ben", "member": "ben",
+      "text": "scrap that, I actually want the full year not Q2", "expect": "AMEND",
+      "expect_target": "r2", "preserves_premise": false },
+
+    { "context": "one_running", "author": "ana", "member": "ana",
+      "text": "never mind the Taiwan one", "expect": "CANCEL", "expect_target": "r1" },
+    { "context": "one_running", "author": "ana", "member": "ana",
+      "text": "actually don't bother with that, I have to run", "expect": "CANCEL",
+      "expect_target": "r1" },
+    { "context": "two_running", "author": "ben", "member": "ben",
+      "text": "cancel the Q2 question please", "expect": "CANCEL", "expect_target": "r2" },
+    { "context": "one_running", "author": "ana", "member": "ana",
+      "text": "stop", "expect": "CANCEL", "expect_target": "r1", "hard": true },
+
+    { "context": "one_running", "author": "cara", "member": "ana",
+      "text": "What's my exposure to Taiwan?", "expect": "DUPLICATE", "expect_target": "r1" },
+    { "context": "one_running", "author": "cara", "member": "ana",
+      "text": "same question here", "expect": "DUPLICATE", "expect_target": "r1" },
+
+    { "context": "one_running", "author": "dev", "member": "dev",
+      "text": "What's my exposure to a Taiwan escalation?", "expect": "NEW",
+      "note": "identical words, different member — not the same question",
+      "hard": true },
+    { "context": "one_running", "author": "dev", "member": "dev",
+      "text": "same for me please", "expect": "NEW",
+      "note": "different portfolio, so it is a new piece of work", "hard": true },
+
+    { "context": "one_answered", "author": "ben", "member": "ben",
+      "text": "And the second biggest?", "expect": "REFERENCE", "expect_target": "r1" },
+    { "context": "one_answered", "author": "ben", "member": "ben",
+      "text": "of those, which one would you trim first?", "expect": "REFERENCE",
+      "expect_target": "r1" },
+    { "context": "answered_and_running", "author": "ben", "member": "ben",
+      "text": "how much of that is through the ETF?", "expect": "REFERENCE",
+      "expect_target": "r1" },
+    { "context": "one_answered", "author": "ben", "member": "ben",
+      "text": "why is that different from what I expected?", "expect": "REFERENCE",
+      "expect_target": "r1", "hard": true },
+
+    { "context": "one_answered", "author": "ben", "member": "ben",
+      "text": "thanks!!", "expect": "IGNORE" },
+    { "context": "one_answered", "author": "ben", "member": "ben",
+      "text": "🙏", "expect": "IGNORE" },
+    { "context": "one_running", "author": "cara", "member": "cara",
+      "text": "haha Ben you're so overexposed", "expect": "IGNORE" },
+    { "context": "two_running", "author": "ana", "member": "ana",
+      "text": "ben are you around later?", "expect": "IGNORE" },
+    { "context": "one_answered", "author": "ben", "member": "ben",
+      "text": "interesting", "expect": "IGNORE", "hard": true },
+    { "context": "one_running", "author": "ana", "member": "ana",
+      "text": "ok", "expect": "IGNORE", "hard": true },
+    { "context": "empty", "author": "cara", "member": "cara",
+      "text": "morning all", "expect": "IGNORE" },
+
+    { "context": "two_running", "author": "ben", "member": "ben",
+      "text": "Actually, Q3", "expect": "AMEND", "expect_target": "r2",
+      "preserves_premise": true,
+      "note": "DESIGN.md §13's own example of a genuinely ambiguous message",
+      "hard": true },
+    { "context": "one_running", "author": "ana", "member": "ana",
+      "text": "what about bonds?", "expect": "NEW",
+      "note": "could be widening the Taiwan question or a fresh one; NEW is the recoverable reading",
+      "hard": true },
+    { "context": "one_running", "author": "ana", "member": "ana",
+      "text": "wait", "expect": "IGNORE",
+      "note": "probably a hesitation, not an instruction to stop — and CANCEL is the destructive reading",
+      "hard": true },
+    { "context": "one_running", "author": "ana", "member": "ana",
+      "text": "no", "expect": "IGNORE",
+      "note": "almost certainly answering someone else in the chat", "hard": true },
+    { "context": "one_answered", "author": "ben", "member": "ben",
+      "text": "can you redo that with end-of-year prices", "expect": "AMEND",
+      "expect_target": "r1", "preserves_premise": false,
+      "note": "an amendment arriving after delivery — the DELIVERED column",
+      "hard": true },
+    { "context": "answered_and_running", "author": "ana", "member": "ana",
+      "text": "drop it", "expect": "CANCEL", "expect_target": "r2",
+      "note": "two candidates; only one is still running", "hard": true },
+    { "context": "two_running", "author": "ana", "member": "ana",
+      "text": "both of those, but just for this quarter", "expect": "AMEND",
+      "expect_target": "r1",
+      "note": "genuinely wants MERGE, which is designed but not built (§12) — AMEND on one is the degraded behaviour we expect",
+      "hard": true },
+    { "context": "one_running", "author": "ana", "member": "ana",
+      "text": "is that still running?", "expect": "IGNORE",
+      "note": "a question about the system, not a portfolio question", "hard": true }
+  ]
+}
