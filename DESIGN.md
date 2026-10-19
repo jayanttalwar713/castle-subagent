@@ -169,15 +169,32 @@ That distinction is load-bearing. It is what lets "And the second biggest?"
 create the dependency link §3 needs, and what lets Cara's repeat of Ana's
 question avoid paying twice for one answer.
 
-### The five relationships we handle
+### The six relationships we handle
 
-| Relationship | Meaning | In the transcript |
+| Relationship | Meaning | Where to see it |
 |---|---|---|
-| `NEW` | An independent request. | Ana t=0, Ben t=2 |
-| `AMEND` | Changes an existing request. Carries one flag, `preserves_premise`. | Ana t=4 |
-| `CANCEL` | Stop work; no answer is owed. | Cara t=11 |
-| `DUPLICATE` | Someone already asked this; one answer serves both. | Cara t=5 |
-| `REFERENCE` | A new request that needs a previous request's **answer** first. | Ben t=9 |
+| `NEW` | An independent request. | transcript, Ana t=0 and Ben t=2 |
+| `AMEND` | Changes an existing request. Carries one flag, `preserves_premise`. | transcript, Ana t=4 |
+| `CANCEL` | Stop work; no answer is owed. | transcript, Cara t=11 |
+| `DUPLICATE` | Someone already asked this; one answer serves both. | transcript, Cara t=5 |
+| `REFERENCE` | A new request that needs a previous request's **answer** first. | transcript, Ben t=9 |
+| `IGNORE` | Not a request at all. | `busy_chat`: "morning all", "thanks!!" |
+
+`IGNORE` is the odd one out, and it is listed because leaving it out would be
+dishonest about the classifier's job. The other five describe a relationship
+*between* this message and some existing request. `IGNORE` says there is no
+request here to relate to anything — it is a greeting, a thank-you, a joke, or
+one member answering another. The Sequencer's response is to return no
+commands at all, so `IGNORE` is the only relationship that never appears in
+the scheduling diagrams.
+
+It still matters, for two reasons. **It is most of a real group chat.** A
+scheduler that treats every message as a request answers "morning all" with a
+portfolio report. And **it is where the dangerous mistakes live**: "wait" or
+"no" or "ok" are almost always social, but read as `CANCEL` they kill live
+work. Five of the labelled set's fourteen hard cases are exactly this —
+"interesting", "ok", "wait", "no", "is that still running?" — which is why
+§ 10 reports the hard cases separately from the clear-cut ones.
 
 The `preserves_premise` flag is doing real work. "Also include South China
 Sea" *widens* the question — the research already done on Taiwan is still
@@ -187,6 +204,35 @@ relationship, one boolean, very different cost. Folding *widen*, *narrow* and
 *replace* into one class with one flag removes three categories the classifier
 would otherwise have to tell apart, and loses no behaviour.
 
+### Who writes the amended question
+
+Classifying a message as `AMEND` is only half the job. Something still has to
+produce the question the worker is now meant to answer, and the obvious
+approach does not survive contact with real messages:
+
+> original: *"How did my book do in Q2?"*
+> change:   *"sorry I meant Q3 not Q2"*
+> glued together: *"How did my book do in Q2? sorry I meant Q3 not Q2"*
+
+That hands the worker a self-contradiction and hopes it picks the right half.
+
+So triage returns a third thing alongside the label and the flag: the merged
+question, already resolved — *"How did my book do in Q3?"*. The model has both
+texts in front of it and is the only component in a position to combine them,
+so it is asked to state the result rather than leaving the Sequencer to
+concatenate strings it cannot read. The field is `rewritten_question` in the
+model's response and `rewritten_spec` on the event.
+
+Concatenation survives as the fallback for when the model omits the field —
+glue on a widening change, replace outright on a premise-replacing one, picked
+by the same `preserves_premise` flag. It is a deliberately poor fallback, and
+the reason the Sequencer prefers the rewrite whenever one is offered.
+
+This is also the clearest case of the division of labour in § 3: judgement
+about language lives in the model, and decisions about work live in the
+Sequencer. "What is this question now?" is a language question. "Whose slot
+does it get, and may the answer ship?" is not.
+
 *(Two further relationships — `MERGE` and `SPLIT` — are designed in §12 and
 deliberately not built. The reasoning is there.)*
 
@@ -194,7 +240,7 @@ deliberately not built. The reasoning is there.)*
 
 > **Classifier** — a model whose job is to put a thing into one of a fixed set
 > of categories. Here: given a message and the live request set, pick one of
-> the five relationships above. **Confidence** is the classifier's own estimate
+> the six relationships above. **Confidence** is the classifier's own estimate
 > of how likely it is to be right, from 0 to 1.
 
 The classifier is a small language model and it will sometimes be wrong. What
@@ -675,8 +721,12 @@ deterministic, a randomly generated chat can be replayed in well under a
 millisecond. So the test suite generates random message streams — arbitrary
 mixes of new questions, amendments, cancels, duplicates and references, at
 arbitrary times, under all three policies and every pool size — and asserts all
-eight invariants on each. A hundred thousand such chats run in a couple of
-minutes without a single network call.
+nine invariants on each. Fifteen thousand such chats replay in about forty
+seconds, without a single network call:
+
+```
+$ HYPOTHESIS_PROFILE=soak pytest tests/test_fuzz.py
+```
 
 **This found four real bugs that the hand-written tests did not**, all of them
 listed in §8: the orphaned follow-up, the delivered-then-cancelled parent, the
@@ -696,6 +746,19 @@ checking disabled ships the obsolete answer — and the invariant checker
 catches it, along with a second violation noticing that the delivered answer
 was never computed by any worker. Turn the check back on and both return to
 zero.
+
+That is a flag, not a thought experiment:
+
+```
+$ python -m chatsched run --scenario late_amend                      # stale: 0 ✓
+$ python -m chatsched run --scenario late_amend --no-version-gate    # stale: 1 ✗
+```
+
+The second command prints the violations and the stale answer that caused
+them. Both runs are also asserted as tests, so the demonstration cannot
+quietly stop working: one test requires the gate to hold, and the other
+requires it to fail when switched off. A safety mechanism nobody has ever
+watched fail is indistinguishable from one that does nothing.
 
 ### Scenario suite
 
@@ -758,7 +821,7 @@ the reasons given below.
 
 - Request register, lifecycle, dependency links, and the Sequencer as a pure function
 - Worker pool, change inboxes, checkpoint handling, version checking
-- Triage over the five relationships of §4, with the confidence asymmetry, and every decision auditable
+- Triage over the six relationships of §4, with the confidence asymmetry, and every decision auditable
 - Delivery: attribution, acknowledgements, addenda, replacement notices
 - Three policies, nine scenarios, the full metrics table
 - Nine executable invariants, a randomised fuzzer, and the version-check demonstration
@@ -804,7 +867,7 @@ is which seems more useful than a verdict.
 
 | Concern | State | What is missing |
 |---|---|---|
-| **Scheduling correctness** | ready | Nine invariants, ~80,000 randomised runs, every relationship and policy exercised. |
+| **Scheduling correctness** | ready | Nine invariants, 15,000 randomised chats per soak run, every relationship and policy exercised. |
 | **Behaviour under change** | ready | The §7 matrix is implemented and tested, including the cases that arrive too late. |
 | **Classification quality** | measured | 95% agreement — so roughly 1 message in 20 is misread. Tolerable because the errors are *shaped* to be recoverable, not because they are rare. |
 | **Surviving a restart** | missing | The event log exists but is never replayed. Because the Sequencer is a pure fold over events, recovery is close to free — it simply is not written. |
@@ -933,7 +996,7 @@ settled arguments the design document could only assert.
 | **Version** | A counter on each request, incremented whenever its question changes. Used to recognise and ignore out-of-date results. |
 | **Stale** | A result computed against a question that has since changed. |
 | **Checkpoint** | A defined safe moment in a worker's run where it reads pending changes. |
-| **Classifier** | A model that sorts each message into one of the five relationships of §4. |
+| **Classifier** | A model that sorts each message into one of the six relationships of §4. |
 | **Confidence** | The classifier's own estimate, 0 to 1, of whether it is right. |
 | **Pure function** | Code that takes input and returns output without touching files, network, or the clock. Same input, same output, every time. |
 | **Deterministic** | Produces exactly the same result every run — which is what makes replay and fuzzing possible. |

@@ -245,7 +245,7 @@ Simulation and tests never make a network call; only `live` needs a key.
 ## How close to production?
 
 Not close, and [DESIGN.md §14](DESIGN.md) says exactly where. The scheduling
-core is solid — nine invariants, ~80,000 randomised runs. What is missing is
+core is solid — nine invariants, 15,000 randomised chats per soak run. What is missing is
 infrastructure that is well understood and would have crowded out the part
 being judged: **crash recovery** (nearly free given the pure Sequencer, just
 not written), **backpressure** (a busy day currently becomes an unbounded

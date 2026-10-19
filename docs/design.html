@@ -861,6 +861,9 @@
     line-height: 1.75;
     color: var(--ink-2);
     overflow-x: auto;
+    /* The block is hand-aligned ASCII art: without this the browser collapses
+       the runs of spaces and the newlines, and the tree reflows into prose. */
+    white-space: pre;
   }
 
   .tree b { color: var(--ink); font-weight: 600; }
@@ -931,6 +934,10 @@
     .transcript, .tension, .arch-box, .arch-arrow,
     .track, .scope-card, .thesis, .note, .caption,
     .gantt-group, .lifeline, .chart, .tree, .qa-item, .pure { break-inside: avoid; }
+    /* The tree's widest line is 105 monospace characters. On screen it can
+       scroll; on paper it cannot, so it has to be sized to fit the A4 text
+       column outright or the right-hand labels are silently cut off. */
+    .tree { font-size: 0.58rem; line-height: 1.6; padding: 0.9rem; }
     /* Tall tables may span pages — keep rows whole and repeat the header
        rather than shunting the whole table and stranding its heading. */
     .table-wrap { break-inside: auto; }
@@ -1287,24 +1294,47 @@
         twice for one answer.
       </p>
 
-      <h3>The five relationships we handle</h3>
+      <h3>The six relationships we handle</h3>
 
       <div class="wide">
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th scope="col">Relationship</th><th scope="col">Meaning</th><th scope="col">In the transcript</th></tr>
+              <tr><th scope="col">Relationship</th><th scope="col">Meaning</th><th scope="col">Where to see it</th></tr>
             </thead>
             <tbody>
-              <tr><th scope="row">NEW</th><td>An independent request.</td><td>Ana t=0, Ben t=2</td></tr>
-              <tr><th scope="row">AMEND</th><td>Changes an existing request. Carries one flag, <code>preserves_premise</code>.</td><td>Ana t=4</td></tr>
-              <tr><th scope="row">CANCEL</th><td>Stop work; no answer is owed.</td><td>Cara t=11</td></tr>
-              <tr><th scope="row">DUPLICATE</th><td>Someone already asked this; one answer serves both.</td><td>Cara t=5</td></tr>
-              <tr><th scope="row">REFERENCE</th><td>A new request that needs a previous request&rsquo;s <em>answer</em> first.</td><td>Ben t=9</td></tr>
+              <tr><th scope="row">NEW</th><td>An independent request.</td><td>transcript, Ana t=0 and Ben t=2</td></tr>
+              <tr><th scope="row">AMEND</th><td>Changes an existing request. Carries one flag, <code>preserves_premise</code>.</td><td>transcript, Ana t=4</td></tr>
+              <tr><th scope="row">CANCEL</th><td>Stop work; no answer is owed.</td><td>transcript, Cara t=11</td></tr>
+              <tr><th scope="row">DUPLICATE</th><td>Someone already asked this; one answer serves both.</td><td>transcript, Cara t=5</td></tr>
+              <tr><th scope="row">REFERENCE</th><td>A new request that needs a previous request&rsquo;s <em>answer</em> first.</td><td>transcript, Ben t=9</td></tr>
+              <tr><th scope="row">IGNORE</th><td>Not a request at all.</td><td><code>busy_chat</code>: &ldquo;morning all&rdquo;, &ldquo;thanks!!&rdquo;</td></tr>
             </tbody>
           </table>
         </div>
       </div>
+
+      <p>
+        <code>IGNORE</code> is the odd one out, and it is listed because leaving it out
+        would be dishonest about the classifier&rsquo;s job. The other five describe a
+        relationship <em>between</em> this message and some existing request.
+        <code>IGNORE</code> says there is no request here to relate to anything &mdash; it
+        is a greeting, a thank-you, a joke, or one member answering another. The
+        Sequencer&rsquo;s response is to return no commands at all, so <code>IGNORE</code>
+        is the only relationship that never appears in the scheduling diagrams.
+      </p>
+
+      <p>
+        It still matters, for two reasons. <strong>It is most of a real group
+        chat.</strong> A scheduler that treats every message as a request answers
+        &ldquo;morning all&rdquo; with a portfolio report. And <strong>it is where the
+        dangerous mistakes live</strong>: &ldquo;wait&rdquo; or &ldquo;no&rdquo; or
+        &ldquo;ok&rdquo; are almost always social, but read as <code>CANCEL</code> they
+        kill live work. Five of the labelled set&rsquo;s fourteen hard cases are exactly
+        this &mdash; &ldquo;interesting&rdquo;, &ldquo;ok&rdquo;, &ldquo;wait&rdquo;,
+        &ldquo;no&rdquo;, &ldquo;is that still running?&rdquo; &mdash; which is why
+        &sect;&nbsp;10 reports the hard cases separately from the clear-cut ones.
+      </p>
 
       <p>
         The <code>preserves_premise</code> flag is doing real work. &ldquo;Also include
@@ -1315,6 +1345,49 @@
         different cost. Folding <em>widen</em>, <em>narrow</em> and <em>replace</em> into
         one class with one flag removes three categories the classifier would otherwise
         have to tell apart, and loses no behaviour.
+      </p>
+
+      <h3>Who writes the amended question</h3>
+
+      <p>
+        Classifying a message as <code>AMEND</code> is only half the job. Something still
+        has to produce the question the worker is now meant to answer, and the obvious
+        approach does not survive contact with real messages:
+      </p>
+
+      <blockquote>
+        original: <em>&ldquo;How did my book do in Q2?&rdquo;</em><br>
+        change: <em>&ldquo;sorry I meant Q3 not Q2&rdquo;</em><br>
+        glued together: <em>&ldquo;How did my book do in Q2? sorry I meant Q3 not
+        Q2&rdquo;</em>
+      </blockquote>
+
+      <p>
+        That hands the worker a self-contradiction and hopes it picks the right half.
+      </p>
+
+      <p>
+        So triage returns a third thing alongside the label and the flag: the merged
+        question, already resolved &mdash; <em>&ldquo;How did my book do in
+        Q3?&rdquo;</em>. The model has both texts in front of it and is the only
+        component in a position to combine them, so it is asked to state the result
+        rather than leaving the Sequencer to concatenate strings it cannot read. The
+        field is <code>rewritten_question</code> in the model&rsquo;s response and
+        <code>rewritten_spec</code> on the event.
+      </p>
+
+      <p>
+        Concatenation survives as the fallback for when the model omits the field &mdash;
+        glue on a widening change, replace outright on a premise-replacing one, picked by
+        the same <code>preserves_premise</code> flag. It is a deliberately poor fallback,
+        and the reason the Sequencer prefers the rewrite whenever one is offered.
+      </p>
+
+      <p>
+        This is also the clearest case of the division of labour in &sect;&nbsp;03:
+        judgement about language lives in the model, and decisions about work live in the
+        Sequencer. &ldquo;What is this question now?&rdquo; is a language question.
+        &ldquo;Whose slot does it get, and may the answer ship?&rdquo; is not.
       </p>
 
 
@@ -1364,7 +1437,7 @@
       <div class="note">
         <span class="term">Classifier</span> &mdash; a model whose job is to put a thing
         into one of a fixed set of categories. Here: given a message and the live
-        request set, pick one of the five relationships above.
+        request set, pick one of the six relationships above.
         <span class="term">Confidence</span> is the classifier&rsquo;s own estimate of
         how likely it is to be right, from 0 to 1.
       </div>
@@ -2284,8 +2357,9 @@
         millisecond. So the test suite generates random message streams &mdash; arbitrary
         mixes of new questions, amendments, cancels, duplicates and references, at
         arbitrary times, under all three policies and every pool size &mdash; and asserts
-        all eight invariants on each. A hundred thousand such chats run in a couple of
-        minutes without a single network call.
+        all nine invariants on each. Fifteen thousand such chats replay in about forty
+        seconds, without a single network call &mdash;
+        <code>HYPOTHESIS_PROFILE=soak pytest tests/test_fuzz.py</code>.
       </p>
 
       <p>
@@ -2308,6 +2382,21 @@
         the delivered answer was never computed by any worker. Turn the check back on and
         both return to zero.
       </div>
+
+      <p>
+        That is a flag, not a thought experiment:
+      </p>
+
+      <div class="tree">$ python -m chatsched run --scenario late_amend                      <span class="why"># stale: 0, invariants hold</span>
+$ python -m chatsched run --scenario late_amend --no-version-gate    <span class="why"># stale: 1, two violations</span></div>
+
+      <p>
+        The second command prints the violations and the stale answer that caused them.
+        Both runs are also asserted as tests, so the demonstration cannot quietly stop
+        working: one test requires the gate to hold, and the other requires it to fail
+        when switched off. A safety mechanism nobody has ever watched fail is
+        indistinguishable from one that does nothing.
+      </p>
 
       <h3>Scenario suite</h3>
 
@@ -2404,7 +2493,7 @@
           <ul>
             <li>Request register, lifecycle, dependency links, and the Sequencer as a pure function</li>
             <li>Worker pool, change inboxes, checkpoint handling, version checking</li>
-            <li>Triage over the five relationships of §&nbsp;04, with the confidence asymmetry, and every decision auditable</li>
+            <li>Triage over the six relationships of §&nbsp;04, with the confidence asymmetry, and every decision auditable</li>
             <li>Delivery: attribution, acknowledgements, addenda, replacement notices</li>
             <li>Three policies, nine scenarios, the full metrics table</li>
             <li>Nine executable invariants, a randomised fuzzer, and the version-check demonstration</li>
@@ -2468,7 +2557,7 @@
               <tr>
                 <th scope="row">Scheduling correctness</th>
                 <td><span class="mark yes">ready</span></td>
-                <td>Nine invariants, ~80,000 randomised runs, every relationship and policy exercised.</td>
+                <td>Nine invariants, 15,000 randomised chats per soak run, every relationship and policy exercised.</td>
               </tr>
               <tr>
                 <th scope="row">Behaviour under change</th>
@@ -2711,7 +2800,7 @@
               <tr><th scope="row">Version</th><td>A counter on each request, incremented whenever its question changes. Used to recognise and ignore out-of-date results.</td></tr>
               <tr><th scope="row">Stale</th><td>A result computed against a question that has since changed.</td></tr>
               <tr><th scope="row">Checkpoint</th><td>A defined safe moment in a worker&rsquo;s run where it reads pending changes.</td></tr>
-              <tr><th scope="row">Classifier</th><td>A model that sorts each message into one of the five relationships of §&nbsp;04.</td></tr>
+              <tr><th scope="row">Classifier</th><td>A model that sorts each message into one of the six relationships of §&nbsp;04.</td></tr>
               <tr><th scope="row">Confidence</th><td>The classifier&rsquo;s own estimate, 0 to 1, of whether it is right.</td></tr>
               <tr><th scope="row">Pure function</th><td>Code that takes input and returns output without touching files, network, or the clock. Same input, same output, every time.</td></tr>
               <tr><th scope="row">Deterministic</th><td>Produces exactly the same result every run &mdash; which is what makes replay and fuzzing possible.</td></tr>
