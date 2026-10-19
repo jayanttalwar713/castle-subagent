@@ -167,6 +167,14 @@ async def _main(
         try:
             event = await asyncio.wait_for(events.get(), timeout=0.25)
         except asyncio.TimeoutError:
+            # Surface an ingestion failure loudly. Without this the loop would
+            # see "ingestion finished, nothing outstanding", declare success,
+            # and print a clean invariant report over a run that did nothing.
+            if ingest.done() and not ingest.cancelled() and ingest.exception():
+                print(f"\ntriage failed: {ingest.exception()}", flush=True)
+                for task in (r.task for r in runs.values() if r.task):
+                    task.cancel()
+                return 2
             # Done when ingestion has finished and nothing is outstanding.
             if ingest.done() and not seq.outstanding:
                 if idle_since is None:
@@ -179,6 +187,10 @@ async def _main(
 
     for task in (r.task for r in runs.values() if r.task):
         task.cancel()
+
+    if not seq.requests:
+        print("\nno requests were created — nothing ran.", flush=True)
+        return 2
 
     violations = invariants.check(seq, transcript, policy, pool_size)
     stats = metrics.compute(

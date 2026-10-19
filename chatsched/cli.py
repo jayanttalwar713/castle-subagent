@@ -10,7 +10,9 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
+from pathlib import Path
 
 from . import invariants, metrics
 from .policies import POLICIES, get_policy
@@ -90,8 +92,35 @@ def cmd_compare(args) -> int:
     return 0
 
 
+def _load_dotenv() -> None:
+    """Read .env into the environment, without taking a dependency for it.
+
+    The README tells you to put your key in .env; without this, nothing would
+    actually read it. Existing environment variables always win.
+    """
+    path = Path(__file__).resolve().parent.parent / ".env"
+    if not path.exists():
+        return
+    for line in path.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        os.environ.setdefault(key.strip(), value.strip().strip("'\""))
+
+
 def cmd_live(args) -> int:
-    from .live import run_live  # imported lazily: needs ANTHROPIC_API_KEY
+    _load_dotenv()
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        print(
+            "ANTHROPIC_API_KEY is not set.\n"
+            "  cp .env.example .env   and put your key in it, or export it directly.\n"
+            "Everything except `live` runs without a key.",
+            file=sys.stderr,
+        )
+        return 2
+
+    from .live import run_live  # imported lazily: needs the key above
 
     messages, work, title = load_scenario(args.scenario)
     return run_live(messages, title, args.policy, args.pool_size, args.explain)
