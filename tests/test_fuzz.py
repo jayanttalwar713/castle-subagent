@@ -39,7 +39,7 @@ from chatsched.triage import InboundMessage
 AUTHORS = ["ana", "ben", "cara"]
 #: None = one shared portfolio for the chat; the rest are separate members.
 MEMBERS = [None, "member-a", "member-b"]
-RELATIONSHIPS = ["AMEND", "CANCEL", "DUPLICATE", "REFERENCE"]
+RELATIONSHIPS = ["AMEND", "CANCEL", "DUPLICATE", "REFERENCE", "IGNORE"]
 
 
 @st.composite
@@ -82,9 +82,17 @@ def message_stream(draw):
             "text": f"{rel.lower()} against {target}",
             "rel": rel,
             "target": target,
+            # A message that does not name what it refers to makes a CANCEL
+            # ask rather than act, which leaves the request outstanding —
+            # a different shape of run for the invariants to survive.
+            "names_target": draw(st.booleans()),
         }
         if rel == "AMEND":
             entry["preserves_premise"] = draw(st.booleans())
+            # Triage may hand back a resolved question instead of text to
+            # concatenate; both paths have to behave.
+            if draw(st.booleans()):
+                entry["rewritten"] = f"rewritten question for {target}"
         if rel == "REFERENCE":
             label = f"q{len(labels)}"
             labels.append(label)
@@ -107,6 +115,8 @@ def _build(raw: list[dict]) -> list[InboundMessage]:
             text=m["text"],
             at=m["at"],
             member=m.get("member"),
+            rewritten_spec=m.get("rewritten"),
+            names_target=bool(m.get("names_target", True)),
             label=m.get("label"),
             target_label=m.get("target"),
             relationship=m.get("rel", "NEW"),
@@ -120,13 +130,18 @@ POLICIES = [Serial, StrictFifo, DependencyOrder]
 
 
 @given(stream=message_stream(), policy_index=st.integers(0, len(POLICIES) - 1),
-       pool_size=st.integers(1, 4))
-def test_invariants_hold_on_random_streams(stream, policy_index, pool_size):
+       pool_size=st.integers(1, 4),
+       snapshot_window=st.sampled_from([0.0, 5.0, 60.0, 1e6]))
+def test_invariants_hold_on_random_streams(stream, policy_index, pool_size,
+                                           snapshot_window):
     raw, work = stream
     policy = POLICIES[policy_index]()
     sim = Simulation(
         messages=_build(raw), work=work, policy=policy, pool_size=pool_size
     )
+    # A window of 0 mints a fresh data version per admission; a huge one
+    # pins everything to the first. Both must stay coherent.
+    sim.seq.snapshot_window = snapshot_window
     result = sim.run()
 
     violations = invariants.check(
