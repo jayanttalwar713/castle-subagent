@@ -1640,54 +1640,59 @@
         errors from 4 to 1.
       </p>
 
-      <h3>A signal that does work, measured but not built</h3>
+      <h3>A signal that works, and why it is no longer needed</h3>
 
       <p>
         Showing that confidence fails raises an obvious question: is there <em>any</em>
         runtime signal that separates right answers from wrong ones? There is, and it is
         not the model&rsquo;s opinion of itself &mdash; it is whether the model agrees
-        with itself. Classifying each message five times and comparing the five answers:
+        with itself. Classifying each message five times, unanimous answers were 97%
+        correct and split ones 33&ndash;60%.
       </p>
+
+      <p>
+        Two things made that more than a curiosity. <strong>Majority voting did not
+        help</strong> &mdash; 3 errors against 3.4 for a single sample, and worse on a
+        second run. The mistakes were systematic rather than random, so five samples
+        reproduced the same bias five times. It was the <em>disagreement</em> that carried
+        information, not the vote. And the messages it flagged were exactly the ones a
+        person would hesitate over: &ldquo;wait&rdquo;, &ldquo;no&rdquo;, &ldquo;is that
+        still running?&rdquo;.
+      </p>
+
+      <p>Then the chat context above was added, and the measurement was repeated:</p>
 
       <div class="wide">
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th scope="col">Across five samples</th><th scope="col">Correct</th></tr>
+              <tr><th scope="col"></th><th scope="col">before chat context</th><th scope="col">after</th></tr>
             </thead>
             <tbody>
-              <tr><th scope="row">all five agree</th><td><strong>97%</strong> &mdash; stable across repeated experiments</td></tr>
-              <tr><th scope="row">the samples disagree</th><td>33&ndash;60%</td></tr>
+              <tr><th scope="row">Cases where five samples disagree</th><td>5&ndash;6 of 38</td><td><strong>2 of 38</strong></td></tr>
+              <tr><th scope="row">Errors on a single sample</th><td>3.4&ndash;4.2</td><td><strong>1.8</strong></td></tr>
+              <tr><th scope="row">Destroyed questions</th><td>1.6&ndash;2.6</td><td><strong>1.0</strong></td></tr>
+              <tr><th scope="row">Correct when unanimous</th><td>97%</td><td>97%</td></tr>
             </tbody>
           </table>
         </div>
       </div>
 
       <p>
-        Compare that with confidence, where right and wrong sit 0.09 apart in bands that
-        almost entirely overlap. Disagreement is the uncertainty signal that self-reported
-        confidence failed to be, and it is computable at runtime &mdash; the
-        <code>hard</code> label in the eval set is not.
-      </p>
-
-      <p>
-        Two details make this more than a curiosity. <strong>Taking the majority vote does
-        not help</strong> &mdash; measured at 3 errors versus 3.4 for a single sample, and
-        worse on a second run. The mistakes are systematic rather than random, so five
-        samples reproduce the same bias five times. It is the <em>disagreement</em>, not
-        the vote, that carries information. And the messages it flags are exactly the ones
-        a person would hesitate over &mdash; &ldquo;wait&rdquo;, &ldquo;no&rdquo;,
-        &ldquo;is that still running?&rdquo; &mdash; plus Dev&rsquo;s question about his
-        own portfolio, the case §&nbsp;11 exists to protect.
+        <strong>The signal survived; the thing it was detecting mostly did not.</strong>
+        Giving the classifier the evidence it was missing removed two thirds of the
+        disagreements outright, because they were never really the model being unsure
+        &mdash; they were the model being asked an unanswerable question and improvising a
+        different answer each time.
       </p>
 
       <div class="note">
-        <strong>It is not built.</strong> Five triage calls per message is affordable
-        (triage is about 4% of one worker&rsquo;s cost) but not free, and the sample is
-        small enough &mdash; five or six disagreements per run &mdash; that the 33&ndash;60%
-        figure is noisy even though the 97% is not. Tuning a mechanism on that would be
-        overfitting to thirty-eight messages I labelled myself. The finding is more useful
-        than the half-tuned mechanism would be.
+        So it is not built, and the reason is better than the cost. Five triage calls per
+        message would now buy a flag on two cases out of thirty-eight, one of which is
+        genuinely ambiguous. <strong>Detecting uncertainty is a worse fix than removing
+        its cause</strong>, and the measurement is what made the difference visible. If
+        the remaining errors ever justify it, the mechanism is characterised and ready; it
+        is simply not earning its keep.
       </div>
 
       <p>

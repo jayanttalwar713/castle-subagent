@@ -356,37 +356,41 @@ that specific bias, and that topical similarity is not evidence of
 relatedness, cut destroyed questions from 9 to 6 and `DUPLICATE`→`AMEND`
 errors from 4 to 1.
 
-**A signal that does work, measured but not built.** Showing that confidence
-fails raises an obvious question: is there *any* runtime signal that
-separates right answers from wrong ones? There is, and it is not the model's
-opinion of itself — it is whether the model agrees with itself.
+**A signal that works, and why it is no longer needed.** Showing that
+confidence fails raises an obvious question: is there *any* runtime signal
+that separates right answers from wrong ones? There is, and it is not the
+model's opinion of itself — it is whether the model agrees with itself.
+Classifying each message five times, unanimous answers were 97% correct and
+split ones 33–60%.
 
-Classifying each message five times and comparing the five answers:
+Two things made that more than a curiosity. **Majority voting did not help** —
+3 errors against 3.4 for a single sample, and worse on a second run. The
+mistakes were systematic rather than random, so five samples reproduced the
+same bias five times. It was the *disagreement* that carried information, not
+the vote. And the messages it flagged were exactly the ones a person would
+hesitate over: "wait", "no", "is that still running?".
 
-| | correct |
-|---|---|
-| all five samples agree | **97%** (stable across repeated experiments) |
-| the samples disagree | 33–60% |
+Then the chat context above was added, and the measurement was repeated:
 
-Compare that with confidence, where right and wrong sit 0.09 apart in bands
-that almost entirely overlap. Disagreement is the uncertainty signal that
-self-reported confidence failed to be, and it is computable at runtime — the
-`hard` label in the eval set is not.
+| | before chat context | after |
+|---|---|---|
+| Cases where five samples disagree | 5–6 of 38 | **2 of 38** |
+| Errors on a single sample | 3.4–4.2 | **1.8** |
+| Destroyed questions | 1.6–2.6 | **1.0** |
+| Correct when unanimous | 97% | 97% |
 
-Two details make this more than a curiosity. **Taking the majority vote does
-not help** — measured at 3 errors versus 3.4 for a single sample, and worse
-on a second run. The mistakes are systematic rather than random, so five
-samples reproduce the same bias five times. It is the *disagreement*, not the
-vote, that carries information. And the messages it flags are exactly the ones
-a person would hesitate over — "wait", "no", "is that still running?" — plus
-Dev's question about his own portfolio, the case §11 exists to protect.
+**The signal survived; the thing it was detecting mostly did not.** Giving the
+classifier the evidence it was missing removed two thirds of the disagreements
+outright, because they were never really the model being unsure — they were
+the model being asked an unanswerable question and improvising a different
+answer each time.
 
-It is not built. It costs five triage calls per message, which is affordable
-(§4's triage is about 4% of one worker's cost) but not free, and the sample is
-small enough — five or six disagreements per run — that the 33–60% figure is
-noisy even though the 97% is not. Tuning a mechanism on that would be
-overfitting to thirty-eight messages I labelled myself. The finding is more
-useful than the half-tuned mechanism would be.
+So it is not built, and the reason is better than the cost. Five triage calls
+per message would now buy a flag on two cases out of thirty-eight, one of
+which is genuinely ambiguous. **Detecting uncertainty is a worse fix than
+removing its cause**, and the measurement is what made the difference visible.
+If the remaining errors ever justify it, the mechanism is characterised and
+ready; it is simply not earning its keep.
 
 The thresholds stay, because they cost little and catch the genuinely
 low-confidence tail. They are no longer load-bearing, and the doc no longer
