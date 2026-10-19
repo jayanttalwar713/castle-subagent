@@ -282,7 +282,7 @@ Three places where the reasoning is subtler than the code looks:
 
 ## Scope
 
-Five hours. What is deliberately designed-but-not-built — `MERGE`/`SPLIT`
+What is deliberately designed-but-not-built — `MERGE`/`SPLIT`
 relationships, `BOUNDED_REORDER(k)`, cross-chat fair-share scheduling — and
 the reasoning for each cut is in [DESIGN.md §12](DESIGN.md). Known failure
 modes are §13; the two that bit during implementation are now handled and

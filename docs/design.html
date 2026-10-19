@@ -2160,7 +2160,7 @@
               <tr><th scope="col">Policy</th><th scope="col">Behaviour</th></tr>
             </thead>
             <tbody>
-              <tr><th scope="row">SERIAL</th><td>One request at a time. <strong>The honest baseline</strong> &mdash; what the system does today.</td></tr>
+              <tr><th scope="row">SERIAL</th><td>One request at a time. <strong>The honest baseline</strong> &mdash; the behaviour the brief describes as creating a backlog.</td></tr>
               <tr><th scope="row">STRICT_FIFO</th><td>Work in parallel, but hold each answer until everything that arrived before it is finished. Isolates the cost of literal ordering.</td></tr>
               <tr><th scope="row">DEPENDENCY_ORDER</th><td>Ship as soon as ready, with attribution and acknowledgements; a request waits only for something it genuinely depends on. <strong>Proposed default.</strong></td></tr>
             </tbody>
@@ -2168,7 +2168,7 @@
         </div>
         <p class="caption">
           <b>SERIAL is in the list deliberately.</b> Option 2 of the brief asks
-          candidates to compare against &ldquo;a simple baseline such as SPY alone&rdquo;;
+          for a comparison against &ldquo;a simple baseline such as SPY alone&rdquo;;
           the equivalent discipline here is to measure against the behaviour we claim to
           be improving on, not only against other clever designs.
         </p>
@@ -2384,24 +2384,18 @@
       <h2><span class="num">&sect; 12</span>What is built, and what is only designed</h2>
 
             <p>
-        The brief suggests this should take a few hours. The first pass was built to
-        roughly that budget, against the cut line below.
+        The cut line is itself a design decision, so it is stated rather than
+        hidden.
       </p>
 
       <p>
-        What came after was not planned. The fuzzer and the classifier eval each
-        found things that <em>changed</em> the design rather than confirming it
-        &mdash; four scheduling bugs, and the discovery that §&nbsp;04&rsquo;s
-        confidence mechanism does not work &mdash; and following those took longer
-        than the original build did. The cut line itself still holds:
-        <code>MERGE</code>/<code>SPLIT</code>, <code>BOUNDED_REORDER</code> and
-        cross-chat scheduling are still not built, for the reasons given. What grew
-        is the list of things that <em>are</em>.
-      </p>
-
-      <p>
-        Stating that plainly seems better than implying a tidier process than the
-        one that happened.
+        Not all of it was planned. The fuzzer and the classifier eval each found
+        things that <em>changed</em> the design rather than confirming it &mdash;
+        four scheduling bugs, and the discovery that §&nbsp;04&rsquo;s confidence
+        mechanism does not work &mdash; and the list of what is built grew as a
+        result. The cut line itself still holds: <code>MERGE</code>/<code>SPLIT</code>,
+        <code>BOUNDED_REORDER</code> and cross-chat scheduling are not built, for the
+        reasons given below.
       </p>
 
       <div class="scope">

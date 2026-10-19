@@ -28,7 +28,8 @@ class Policy(Protocol):
 
 
 class Serial:
-    """One request at a time. The honest baseline — what the system does today.
+    """One request at a time. The honest baseline — the behaviour the brief
+    describes as creating a backlog.
 
     Needs no attribution because only one request is ever outstanding, so
     there is never any ambiguity about what an answer answers.

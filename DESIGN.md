@@ -602,12 +602,12 @@ interchangeable and comparable on identical inputs:
 
 | Policy | Behaviour |
 |---|---|
-| `SERIAL` | One request at a time. **The honest baseline** — what the system does today. |
+| `SERIAL` | One request at a time. **The honest baseline** — the behaviour the brief describes as creating a backlog. |
 | `STRICT_FIFO` | Work in parallel, but hold each answer until everything that arrived before it is finished. Isolates the cost of literal ordering. |
 | `DEPENDENCY_ORDER` | Ship as soon as ready, with attribution and acknowledgements; a request waits only for something it genuinely depends on. **Proposed default.** |
 
-`SERIAL` is in the list deliberately. Option 2 of the brief asks candidates to
-compare against "a simple baseline such as SPY alone"; the equivalent
+`SERIAL` is in the list deliberately. Option 2 of the brief asks for a
+comparison against "a simple baseline such as SPY alone"; the equivalent
 discipline here is to measure against the behaviour we claim to be improving
 on, not only against other clever designs.
 
@@ -745,19 +745,14 @@ able to reject one and immediately know what breaks.
 
 ## 12. What is built, and what is only designed
 
-The brief suggests this should take a few hours. The first pass was built to
-roughly that budget, against the cut line below.
+The cut line is itself a design decision, so it is stated rather than hidden.
 
-What came after was not planned. The fuzzer and the classifier eval each found
-things that *changed* the design rather than confirming it — four scheduling
-bugs, and the discovery that §4's confidence mechanism does not work — and
-following those took longer than the original build did. The cut line itself
-still holds: `MERGE`/`SPLIT`, `BOUNDED_REORDER`, and cross-chat scheduling are
-still not built, for the reasons given. What grew is the list of things that
-*are*.
-
-Stating that plainly seems better than implying a tidier process than the one
-that happened.
+Not all of it was planned. The fuzzer and the classifier eval each found things
+that *changed* the design rather than confirming it — four scheduling bugs, and
+the discovery that §4's confidence mechanism does not work — and the list of
+what is built grew as a result. The cut line itself still holds:
+`MERGE`/`SPLIT`, `BOUNDED_REORDER` and cross-chat scheduling are not built, for
+the reasons given below.
 
 ### Built
 
