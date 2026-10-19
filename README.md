@@ -88,7 +88,7 @@ Two further columns are correctness checks that must read zero — `stale` and
 ## Correctness
 
 ```console
-$ python -m pytest                 # 132 tests, 96% coverage
+$ python -m pytest                 # 170 tests, 90% coverage
 $ HYPOTHESIS_PROFILE=soak pytest tests/test_fuzz.py   # 5,000 random chats
 ```
 
@@ -102,7 +102,7 @@ Coverage is 96%; the untested remainder is argparse wiring and
 unreachable guards. The invariants live in [`chatsched/invariants.py`](chatsched/invariants.py)
 and are executable, not prose: *no deadlock, completeness, no stale answers,
 non-contradiction, causal consistency, attribution, pool bound, tokens
-accounted.*
+accounted, snapshot coherence.*
 
 **The fuzzer found four real bugs that the hand-written tests did not:**
 
@@ -132,6 +132,34 @@ $ python -m chatsched run --scenario late_amend --no-version-gate   # stale: 1 �
 With the gate off, the superseded worker's answer reaches the chat 5 seconds
 early, and two invariants fail — including `tokens_accounted`, which notices
 we shipped an answer that no worker ever computed.
+
+## Measuring the classifier
+
+Everything above tests the scheduler. The classifier needs a different
+instrument, and `python -m chatsched eval` provides one: 38 labelled messages
+against realistic live request sets, 14 of them deliberately ambiguous, scored
+for precision, recall, and — the thing §4 actually claims — **which direction
+the errors go**.
+
+It produced a negative result about my own design. Across 152 observations,
+self-reported confidence barely separates right from wrong (0.93 correct vs
+0.85 wrong, with mistakes as high as 0.95). Sweeping the threshold from 0 to
+0.90 does not reduce destroyed questions *at all* — it only adds redundant
+ones. **The mechanism §4 leaned on does not work.**
+
+Two things replaced it, both measured:
+
+- A `CANCEL` whose message does not **name what it refers to** now asks
+  instead of acting. "Never mind the Taiwan one" names its target; a bare
+  "no" does not. `CANCEL` precision is 1.00 with this in place, and it needs
+  no parked state — if they meant it, the reply names its target by
+  construction.
+- The error the data actually found was **over-merging**, not
+  over-cancelling. Naming that bias in the prompt cut destroyed questions
+  from 9 to 6 and `DUPLICATE`→`AMEND` from 4 to 1.
+
+The eval also repeats, because the classifier is not deterministic: identical
+runs score between 89% and 97%, so a single pass is an anecdote.
 
 ## Live mode
 

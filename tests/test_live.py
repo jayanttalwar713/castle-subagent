@@ -69,10 +69,12 @@ class FakeWorker:
         self.changes_seen: list[str] = []
         self.specs: list[str] = []
         self.retained_seen: list[tuple] = []
+        self.as_of_seen: list[str | None] = []
 
-    async def answer(self, spec, checkpoint, retained=()):
+    async def answer(self, spec, checkpoint, retained=(), as_of=None):
         self.specs.append(spec)
         self.retained_seen.append(tuple(retained))
+        self.as_of_seen.append(as_of)
         if self.fail:
             raise RuntimeError("worker exploded")
         for phase, results in (
@@ -233,3 +235,19 @@ async def test_retained_tool_results_reach_the_worker_in_live_mode(fakes):
     assert code == 0
     assert len(worker.specs) == 2, "a restart was expected at this stage"
     assert worker.retained_seen[-1], "the restart re-fetched instead of reusing"
+
+
+async def test_the_pinned_data_version_reaches_the_worker(fakes):
+    """The Sequencer pins a data version per request so concurrent answers
+    agree and an addendum is coherent with the answer it extends (§8). Like
+    retained tool results, it is worth nothing unless the worker receives it —
+    and that is a field this codebase has already dropped once."""
+    _triage, worker = fakes
+    code = await run([
+        message("first question", label="a"),
+        message("second question", author="ben", at=0.05, label="b"),
+    ])
+    assert code == 0
+    assert all(seen is not None for seen in worker.as_of_seen), "pin never arrived"
+    # Asked at the same moment, so they must answer against the same data.
+    assert len(set(worker.as_of_seen)) == 1

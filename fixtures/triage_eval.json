@@ -152,9 +152,11 @@
     { "context": "two_running", "author": "ana", "member": "ana",
       "text": "ben are you around later?", "expect": "IGNORE" },
     { "context": "one_answered", "author": "ben", "member": "ben",
-      "text": "interesting", "expect": "IGNORE", "hard": true },
+      "text": "interesting", "expect": "IGNORE", "hard": true,
+      "note": "a reaction to the answer just given, not a request for more" },
     { "context": "one_running", "author": "ana", "member": "ana",
-      "text": "ok", "expect": "IGNORE", "hard": true },
+      "text": "ok", "expect": "IGNORE", "hard": true,
+      "note": "acknowledgement; reading it as CANCEL would kill a live request on a guess" },
     { "context": "empty", "author": "cara", "member": "cara",
       "text": "morning all", "expect": "IGNORE" },
 

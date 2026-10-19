@@ -11,6 +11,7 @@ import pytest
 from chatsched.model import (
     Abort,
     Completed,
+    Deliver,
     DeliveryKind,
     Dispatch,
     Inject,
@@ -621,3 +622,61 @@ def test_an_ambiguous_cancel_of_an_answered_question_still_just_acknowledges():
                target=rid, names_target=False))
     assert h.delivered(DeliveryKind.ALREADY_ANSWERED)
     assert h.delivered(DeliveryKind.CONFIRM_CANCEL) == []
+
+
+# ----------------------------------------------- pinned data snapshots --
+
+
+def test_every_version_of_a_request_answers_against_the_same_data():
+    """An addendum computed against different holdings than the answer it is
+    adding to is incoherent, however correct each half is on its own (§8)."""
+    h = Harness()
+    rid = h.ask("taiwan exposure?", author="ana", at=0)
+    pinned = h.seq.requests[rid].as_of
+    assert pinned is not None
+
+    h.send(msg("also south china sea", at=600, rel=Relationship.AMEND, target=rid))
+    h.abort_landed(rid, at=601)
+
+    # Re-run long after the snapshot window would have rolled over.
+    assert h.seq.requests[rid].as_of == pinned
+    assert h.dispatches(rid)[-1].as_of == pinned
+
+
+def test_questions_asked_at_the_same_moment_agree_with_each_other():
+    """Two people asking concurrently should not straddle a price move and
+    report figures that contradict each other."""
+    h = Harness()
+    first = h.ask("how concentrated am I in semis?", author="ana", at=0)
+    second = h.ask("what's my exposure to Taiwan?", author="ben", at=2)
+
+    assert h.seq.requests[first].as_of == h.seq.requests[second].as_of
+
+
+def test_questions_asked_far_apart_use_fresh_data():
+    """The pin is for coherence, not for serving stale numbers forever."""
+    h = Harness()
+    early = h.ask("q", author="ana", at=0)
+    late = h.ask("q2", author="ben", at=5_000)
+
+    assert h.seq.requests[early].as_of != h.seq.requests[late].as_of
+
+
+def test_a_worker_that_ignores_the_pin_is_caught():
+    """The pin is worthless unless workers honour it — and a worker silently
+    dropping a field the Sequencer sends it is a mistake already made once in
+    this codebase, with retained tool results."""
+    from chatsched import invariants
+    from chatsched.delivery import Transcript
+    from chatsched.model import Completed
+
+    h = Harness()
+    rid = h.ask("q", author="ana", at=0)
+    h.send(Completed(rid, 1, "answer", 100, 5.0, as_of="some-other-version"))
+
+    transcript = Transcript()
+    for cmd in h.all:
+        if isinstance(cmd, Deliver):
+            transcript.record(cmd, 5.0)
+    violations = invariants.check(h.seq, transcript, h.policy, h.pool_size)
+    assert any(v.invariant == "snapshot_coherence" for v in violations), violations

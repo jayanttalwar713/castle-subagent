@@ -242,7 +242,11 @@ class LLMWorker:
         self.portfolio = load_portfolio()
 
     async def answer(
-        self, spec: str, checkpoint, retained: tuple[str, ...] = ()
+        self,
+        spec: str,
+        checkpoint,
+        retained: tuple[str, ...] = (),
+        as_of: str | None = None,
     ) -> tuple[str, int, list[str]]:
         """Run the agent loop.
 
@@ -315,7 +319,11 @@ class LLMWorker:
             for block in response.content:
                 if block.type != "tool_use":
                     continue
-                payload = json.dumps(self.portfolio)
+                payload = json.dumps(
+                    {**self.portfolio, "data_version": as_of}
+                    if as_of
+                    else self.portfolio
+                )
                 tool_results.append(payload)
                 results.append(
                     {

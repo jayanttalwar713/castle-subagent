@@ -129,7 +129,7 @@ async def _main(
 
         try:
             text, tokens, _results = await worker.answer(
-                cmd.spec, checkpoint, cmd.retained_tool_results
+                cmd.spec, checkpoint, cmd.retained_tool_results, cmd.as_of
             )
         except asyncio.CancelledError:
             await events.put(
@@ -142,7 +142,7 @@ async def _main(
             )
             return
         await events.put(
-            Completed(run.request_id, run.version, text, tokens, now())
+            Completed(run.request_id, run.version, text, tokens, now(), cmd.as_of)
         )
 
     async def _ingest() -> None:

@@ -57,6 +57,7 @@ def check(
     out += _attribution(transcript, policy)
     out += _pool_bound(seq, policy, pool_size)
     out += _tokens_accounted(seq)
+    out += _snapshot_coherence(seq)
     return out
 
 
@@ -212,3 +213,26 @@ def _tokens_accounted(seq: Sequencer) -> list[Violation]:
     return out
 
 
+
+def _snapshot_coherence(seq: Sequencer) -> list[Violation]:
+    """A delivered answer used the data version its request was pinned to.
+
+    The pin is what makes an addendum coherent with the answer it extends,
+    and what stops two concurrent questions reporting figures that disagree.
+    It is only worth anything if workers honour it — and a worker quietly
+    ignoring a field the Sequencer sends it is a mistake this codebase has
+    already made once, with retained tool results (§7c).
+    """
+    out: list[Violation] = []
+    for req in seq.requests.values():
+        if req.stage is not Stage.DELIVERED or req.as_of is None:
+            continue
+        if req.answered_as_of is not None and req.answered_as_of != req.as_of:
+            out.append(
+                Violation(
+                    "snapshot_coherence",
+                    f"{req.id} was pinned to {req.as_of} but answered "
+                    f"against {req.answered_as_of}",
+                )
+            )
+    return out

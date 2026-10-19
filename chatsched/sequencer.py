@@ -52,6 +52,10 @@ class Sequencer:
     #: gating on, a result whose version is not current is ignored; with it
     #: off, stale answers reach the chat and the invariant checker catches it.
     version_gate: bool = True
+    #: Requests admitted within this many seconds of each other answer
+    #: against the same data version, so concurrent answers agree with each
+    #: other rather than straddling a price move.
+    snapshot_window: float = 60.0
 
     requests: dict[str, Request] = field(default_factory=dict)
     graph: DependencyGraph = field(default_factory=DependencyGraph)
@@ -64,6 +68,8 @@ class Sequencer:
     _ready: dict[str, float] = field(default_factory=dict)
     _seq: int = 0
     _ids: int = 0
+    _snapshot: tuple[str, float] | None = None
+    _snapshots: int = 0
     #: High-water mark of pool occupancy, asserted against the policy's
     #: concurrency limit by the invariant checker.
     max_in_flight: int = 0
@@ -316,6 +322,7 @@ class Sequencer:
 
         req.answer = ev.answer
         req.answer_version = ev.version
+        req.answered_as_of = ev.as_of
         req.ready_at = ev.at
         self._ready[req.id] = ev.at
         return []
@@ -350,7 +357,7 @@ class Sequencer:
             if batch:
                 cmds += batch
                 progressed = True
-            batch = self._admit_pass()
+            batch = self._admit_pass(now)
             if batch:
                 cmds += batch
                 progressed = True
@@ -375,14 +382,14 @@ class Sequencer:
             break  # state changed; re-enter the loop with a fresh view
         return cmds
 
-    def _admit_pass(self) -> list[Command]:
+    def _admit_pass(self, now: float) -> list[Command]:
         limit = self.policy.concurrency(self.pool_size)
         cmds: list[Command] = []
         while len(self._in_flight) < limit:
             req = self._next_admissible()
             if req is None:
                 break
-            cmds.append(self._dispatch(req))
+            cmds.append(self._dispatch(req, now))
         return cmds
 
     def _next_admissible(self) -> Request | None:
@@ -410,7 +417,7 @@ class Sequencer:
                 best = req
         return best
 
-    def _dispatch(self, req: Request) -> Dispatch:
+    def _dispatch(self, req: Request, now: float = 0.0) -> Dispatch:
         if req.depends_on is not None:
             parent = self.requests.get(req.depends_on)
             if parent is not None and parent.answer is not None:
@@ -419,10 +426,29 @@ class Sequencer:
                 # admission — not at arrival (§8).
                 req.spec = f"{req.spec}\n\n(in reference to: {parent.answer})"
                 req.depends_on = None
+        if req.as_of is None:
+            # Pinned once. Later versions of this question re-run against the
+            # same data, so an addendum is coherent with the answer it extends.
+            req.as_of = self._snapshot_for(now)
         req.stage = Stage.PLANNING
         self._in_flight[req.id] = req.version
         self.max_in_flight = max(self.max_in_flight, len(self._in_flight))
-        return Dispatch(req.id, req.version, req.spec, tuple(req.tool_results))
+        return Dispatch(
+            req.id, req.version, req.spec, tuple(req.tool_results), req.as_of
+        )
+
+    def _snapshot_for(self, now: float) -> str:
+        """The data version to answer against.
+
+        Reused across requests admitted close together, so two people asking
+        at the same moment get figures that agree. Deterministic — the id is a
+        counter, not a clock reading, because the Sequencer is a pure function.
+        """
+        if self._snapshot is not None and now - self._snapshot[1] <= self.snapshot_window:
+            return self._snapshot[0]
+        self._snapshots += 1
+        self._snapshot = (f"as-of-{self._snapshots}", now)
+        return self._snapshot[0]
 
     def _invalidate_pending(self, req: Request) -> None:
         """Throw away an answer that is ready but not yet delivered.

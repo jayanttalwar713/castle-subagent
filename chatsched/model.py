@@ -97,6 +97,16 @@ class Request:
     #: visible addendum or replacement rather than a bare answer (§7).
     redeliver_as: "DeliveryKind | None" = None
 
+    #: Which version of the underlying data this question is answered
+    #: against. Pinned once, at first admission, and never changed — so every
+    #: version of the request sees the same holdings and prices. Without it an
+    #: addendum can be computed against different data than the answer it is
+    #: adding to, and two concurrent questions can report figures that
+    #: disagree (DESIGN.md §8).
+    as_of: str | None = None
+    #: The data version the pending answer was actually computed against.
+    answered_as_of: str | None = None
+
     admitted_at: float | None = None
     ready_at: float | None = None
     delivered_at: float | None = None
@@ -191,6 +201,9 @@ class Completed:
     answer: str
     tokens: int
     at: float
+    #: Which data version the worker actually used. Reported back so the
+    #: invariant checker can catch a worker that ignored the pin.
+    as_of: str | None = None
 
 
 @dataclass(frozen=True)
@@ -218,6 +231,7 @@ class Dispatch:
     version: int
     spec: str
     retained_tool_results: tuple[str, ...] = ()
+    as_of: str | None = None
 
 
 @dataclass(frozen=True)

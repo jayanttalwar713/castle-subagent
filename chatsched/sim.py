@@ -49,6 +49,7 @@ class Run:
     version: int
     spec: str
     stages: list[tuple[Stage, float, int]]
+    as_of: str | None = None
     #: Index of the stage currently executing.
     index: int = 0
     tokens_spent: int = 0
@@ -185,6 +186,7 @@ class Simulation:
                 answer=self._answer_for(run),
                 tokens=run.tokens_spent,
                 at=self._now,
+                as_of=run.as_of,
             )
         )
 
@@ -248,7 +250,7 @@ class Simulation:
                 (Stage.TOOL_CALL, work.tool, TOKENS[Stage.TOOL_CALL]),
                 (Stage.DRAFTING, work.draft, TOKENS[Stage.DRAFTING]),
             ]
-        run = Run(cmd.request_id, cmd.version, cmd.spec, stages)
+        run = Run(cmd.request_id, cmd.version, cmd.spec, stages, as_of=cmd.as_of)
         self._runs[cmd.request_id] = run
         self._schedule(self._now + stages[0][1], "boundary", (run, 0))
 

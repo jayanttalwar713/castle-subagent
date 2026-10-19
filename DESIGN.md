@@ -480,6 +480,18 @@ delivery buffer where a later release could still ship it. *Resolution:* a
 change always discards any undelivered answer, and always goes back through
 admission rather than starting a worker directly.
 
+**Answers that disagree with each other.** Each worker fetches holdings and
+prices independently, so two questions asked a minute apart can straddle a
+price move and report figures that contradict each other — and an addendum
+can be computed against different data than the answer it is adding to,
+which is incoherent however correct each half is alone. *Resolution:* a
+**data version is pinned at first admission** and never changed, so every
+version of a request answers against the same holdings; requests admitted
+close together share a pin, so concurrent answers agree. The worker reports
+back which version it actually used, and an invariant checks it — because a
+worker silently dropping a field the Sequencer sends it is a mistake this
+codebase has already made once, with retained tool results.
+
 **Two things happening at the same instant.** A result arriving and a change
 arriving can land at the same moment. *Resolution:* the Sequencer handles one
 event at a time, to completion. There is no interleaving to get wrong — the
@@ -563,6 +575,7 @@ as prose that asserts them:
 | `attribution` | A policy that promises a requote shipping without one |
 | `pool_bound` | More workers in flight than the pool allows |
 | `tokens_accounted` | Shipping an answer that no worker ever actually computed |
+| `snapshot_coherence` | Answering against a different data version than the one the request was pinned to |
 
 ### Measuring the classifier
 
@@ -679,7 +692,8 @@ than hidden.
 - Triage over the five relationships of §4, with the confidence asymmetry, and every decision auditable
 - Delivery: attribution, acknowledgements, addenda, replacement notices
 - Three policies, eight scenarios, the full metrics table
-- Eight executable invariants, a randomised fuzzer, and the version-check demonstration
+- Nine executable invariants, a randomised fuzzer, and the version-check demonstration
+- A labelled eval for the classifier (§4), which changed the design rather than confirming it
 - Live mode: real Haiku triage and real Opus workers against a portfolio fixture
 
 ### Designed, not built — and why
