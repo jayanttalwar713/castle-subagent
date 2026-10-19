@@ -724,6 +724,127 @@ real system.
 
 ---
 
+---
+
+## 14. How far from production is this?
+
+Honestly: it is a working prototype and a design artifact, not a system you
+could put in front of members on Monday. The scheduling core is in good shape;
+almost everything around it is deliberately absent. Being specific about which
+is which seems more useful than a verdict.
+
+| Concern | State | What is missing |
+|---|---|---|
+| **Scheduling correctness** | ready | Nine invariants, ~80,000 randomised runs, every relationship and policy exercised. |
+| **Behaviour under change** | ready | The §7 matrix is implemented and tested, including the cases that arrive too late. |
+| **Classification quality** | measured | 95% agreement — so roughly 1 message in 20 is misread. Tolerable because the errors are *shaped* to be recoverable, not because they are rare. |
+| **Surviving a restart** | missing | The event log exists but is never replayed. Because the Sequencer is a pure fold over events, recovery is close to free — it simply is not written. |
+| **Sustained load** | missing | No backpressure. If messages arrive faster than the pool drains, the queue grows without limit and nobody is told. |
+| **Many chats at once** | missing | One Sequencer per chat, but nothing supervises them. A single busy chat can take the whole worker pool. |
+| **Who may see what** | partial | Members' questions and answers are kept apart, but the member on an inbound message is taken at face value. Real access control belongs at the chat boundary. |
+| **Cost control** | partial | Waste is measured but not acted on. No budget ceiling, no debouncing of someone typing three corrections in four seconds. |
+| **Operability** | missing | No tracing, no metrics export, no alerting. The event log is the only forensic surface. |
+| **Real chat integration** | missing | No Slack or Discord transport. Deliberate — see §12. |
+
+The pattern is deliberate: everything marked ready is something the brief asked
+about, and everything missing is infrastructure that is well understood and
+would have crowded out the part being judged.
+
+### What I would build next, in order
+
+1. **Recovery by replaying the log.** The best effort-to-payoff ratio on the
+   list, and it demonstrates why the Sequencer was made pure rather than merely
+   asserting it.
+2. **Backpressure.** The one missing piece that turns a busy day into an outage
+   rather than a slowdown.
+3. **Debouncing changes.** The system already measures wasted spend; it should
+   act on it instead of only reporting it.
+4. **Fair sharing across chats.** Per-chat caps are the obvious knob; proper
+   scheduling is not written.
+5. **Streaming delivery** — and an answer to the question it raises: what does
+   "this replaces my earlier answer" mean when half of that answer has already
+   been read? I do not know, and that is the most interesting open question here.
+
+---
+
+## 15. Questions you might reasonably ask
+
+Each of these is a decision that could have gone the other way, with the reason
+it did not.
+
+**Why is the Sequencer a pure function? That looks like dogma.**
+It buys three specific things. The claim in §5 — that the shared-state component
+does no inference — stops being a promise and becomes something the shape of the
+code enforces. The races in §8 cannot occur, because one event is handled start
+to finish. And it is the only reason the fuzzer exists: a function with no I/O
+can be driven tens of thousands of times per second. The cost is that something
+else must carry out the commands, and that seam is where two real bugs appeared
+— live mode silently ignoring fields the Sequencer sent it. The invariants now
+check for exactly that.
+
+**Isn't "ordered" just FIFO? You redefined the requirement to make it easier.**
+That is the fair challenge. FIFO is one *way* to buy four properties, not the
+property itself. Ask what a reader needs — to know what an answer answers, what
+is still outstanding, which answers are live, and that a follow-up arrives after
+what it follows — and only the last involves order at all. It is also
+falsifiable rather than rhetorical: `STRICT_FIFO` is implemented, so if literal
+order is genuinely required you switch one policy and pay 21 seconds of
+head-of-line delay knowingly. The argument is that you should not pay it by
+accident.
+
+**Why version numbers rather than cancelling properly?**
+Because reliably stopping distributed work is hard and ignoring out-of-date work
+is trivial. The stop signal races the work finishing and sometimes loses — not
+hypothetically; it is modelled and demonstrable. We still try to stop superseded
+workers to save money, but correctness never depends on it landing.
+
+**Five relationships. Why not three, or nine?**
+Each earns its place by producing behaviour the others cannot: `REFERENCE`
+creates the only dependency edge, `DUPLICATE` is the only one that avoids paying
+twice, `IGNORE` is the only one that costs nothing at all. Widening, narrowing
+and replacing a question collapse into one class with one boolean, because the
+only thing that differs is whether the research survives. `MERGE` and `SPLIT`
+carry the matrix's highest implementation cost for its rarest cases, and are the
+two a small classifier is least able to tell apart.
+
+**You measured your own mitigation and it failed. Why keep it?**
+Because the thresholds still catch a genuinely low-confidence tail and cost
+almost nothing. What changed is what the document *claims*: they are no longer
+described as the mechanism that makes errors asymmetric, because the data says
+they are not. The replacement is a different signal — whether the message names
+what it refers to. "Never mind the Taiwan one" does; a bare "no" does not, and
+might not even be addressed to the agent.
+
+**Why mock the tools? Real ones would be more convincing.**
+The opposite, for the thing being tested. Reproducing "the amendment arrives
+*during* the tool call" requires controlling exactly when that call returns; a
+real API makes the race unreproducible and the scenario becomes a coin flip. So
+replay is mocked and deterministic, and a live mode runs the same Sequencer
+against real Haiku and Opus so the architecture can be seen doing the actual
+job. Both exist because they answer different questions.
+
+**What is the weakest part?**
+The classifier, and it is not close. Everything downstream depends on it, and at
+95% agreement roughly one message in twenty is misread. That is why the errors
+are shaped rather than merely counted, why destructive readings ask instead of
+acting, and why every decision is logged with its confidence and reasoning. The
+second weakest is that it is one process with no backpressure.
+
+**What surprised you?**
+That the fuzzer found four real bugs the hand-written tests did not, and that
+two of them lived in the window this document had already named as a known
+weakness — identified in prose, unhandled in code. And that my own agent had
+head-of-line blocking in its ingest loop: a stalled classifier call would block
+every later message, in a system built to remove exactly that.
+
+**What would you change about the approach, not the code?**
+I would build the eval first. Measuring the classifier changed a design
+decision; writing thresholds down from intuition and defending them in prose did
+not. The same is probably true of the ordering policies — the comparison table
+settled arguments the design document could only assert.
+
+
+---
 ## Glossary
 
 | Term | Meaning |

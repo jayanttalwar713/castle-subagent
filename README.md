@@ -88,7 +88,7 @@ Two further columns are correctness checks that must read zero — `stale` and
 ## Correctness
 
 ```console
-$ python -m pytest                 # 170 tests, 90% coverage
+$ python -m pytest                 # 185 tests, 90% coverage
 $ HYPOTHESIS_PROFILE=soak pytest tests/test_fuzz.py   # 5,000 random chats
 ```
 
@@ -241,6 +241,16 @@ $ python -m chatsched compare --all      # no API key needed
 ```
 
 Simulation and tests never make a network call; only `live` needs a key.
+
+## How close to production?
+
+Not close, and [DESIGN.md §14](DESIGN.md) says exactly where. The scheduling
+core is solid — nine invariants, ~80,000 randomised runs. What is missing is
+infrastructure that is well understood and would have crowded out the part
+being judged: **crash recovery** (nearly free given the pure Sequencer, just
+not written), **backpressure** (a busy day currently becomes an unbounded
+queue), **fair sharing across chats**, and **operability**. §15 answers the
+questions a reviewer is most likely to ask.
 
 ## Scope
 

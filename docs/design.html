@@ -657,6 +657,250 @@
     * { animation: none !important; transition: none !important; }
   }
 
+
+  /* ---------- gantt / timeline ---------- */
+
+  .gantt {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: var(--s3);
+    display: flex;
+    flex-direction: column;
+    gap: var(--s3);
+  }
+
+  .gantt-group { display: flex; flex-direction: column; gap: 0.45rem; }
+
+  .gantt-title {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-2);
+  }
+
+  .gantt-title .verdict { font-weight: 400; text-transform: none; letter-spacing: 0; color: var(--ink-3); }
+
+  .gantt-row {
+    display: grid;
+    grid-template-columns: 4.6rem minmax(0, 1fr);
+    align-items: center;
+    gap: var(--s2);
+  }
+
+  .gantt-label {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--ink-2);
+    text-align: right;
+  }
+
+  .gantt-track {
+    position: relative;
+    height: 1.4rem;
+    background: var(--ground);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .gantt-bar {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    border-radius: 2px;
+    display: flex;
+    align-items: center;
+    padding: 0 0.4rem;
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    white-space: nowrap;
+  }
+
+  .gantt-bar.work { background: var(--accent); color: var(--surface); }
+  .gantt-bar.wait {
+    background: repeating-linear-gradient(
+      45deg, var(--crit-soft), var(--crit-soft) 4px, transparent 4px, transparent 8px);
+    border: 1px solid var(--crit);
+    color: var(--crit);
+  }
+  .gantt-bar.idle { background: var(--rule); color: var(--ink-3); }
+
+  .gantt-axis {
+    display: grid;
+    grid-template-columns: 4.6rem minmax(0, 1fr);
+    gap: var(--s2);
+    font-family: var(--mono);
+    font-size: 0.62rem;
+    color: var(--ink-3);
+  }
+
+  .gantt-axis .ticks { display: flex; justify-content: space-between; }
+
+  .gantt-key {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s2) var(--s3);
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    color: var(--ink-2);
+    padding-top: var(--s2);
+    border-top: 1px solid var(--rule);
+  }
+
+  .gantt-key span.swatch {
+    display: inline-block;
+    width: 1.5rem;
+    height: 0.65rem;
+    border-radius: 2px;
+    vertical-align: middle;
+    margin-right: 0.35rem;
+  }
+
+  /* ---------- lifeline diagrams ---------- */
+
+  .lifeline {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: var(--s3);
+    overflow-x: auto;
+  }
+
+  .lifeline svg { display: block; min-width: 520px; width: 100%; height: auto; }
+  .lifeline .ll-rule { stroke: var(--rule-strong); stroke-width: 1; }
+  .lifeline .ll-span { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1; }
+  .lifeline .ll-span-dead { fill: var(--crit-soft); stroke: var(--crit); stroke-width: 1; }
+  .lifeline .ll-arrow { stroke: var(--ink-2); stroke-width: 1.4; fill: none; }
+  .lifeline .ll-arrow-bad { stroke: var(--crit); stroke-width: 1.4; fill: none; }
+  .lifeline .ll-label { fill: var(--ink-2); font-family: var(--mono); font-size: 9.5px; }
+  .lifeline .ll-label-strong { fill: var(--ink); font-family: var(--mono); font-size: 10px; font-weight: 600; }
+  .lifeline .ll-label-bad { fill: var(--crit); font-family: var(--mono); font-size: 9.5px; }
+  .lifeline .ll-label-good { fill: var(--accent); font-family: var(--mono); font-size: 9.5px; font-weight: 600; }
+  .lifeline .ll-tick { stroke: var(--rule); stroke-width: 1; stroke-dasharray: 2 3; }
+
+  /* ---------- pure function ---------- */
+
+  .pure {
+    display: grid;
+    gap: var(--s2);
+    grid-template-columns: 1fr;
+    align-items: stretch;
+  }
+
+  @media (min-width: 760px) {
+    .pure { grid-template-columns: 1fr auto 1fr; align-items: center; }
+  }
+
+  .pure-side {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: var(--s3);
+  }
+
+  .pure-side h4 {
+    margin: 0 0 0.6rem;
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+  }
+
+  .pure-side ul { margin: 0; padding-left: 1rem; font-size: 0.86rem; }
+  .pure-side li { margin: 0.2rem 0; }
+  .pure-side code { background: transparent; padding: 0; }
+
+  .pure-core {
+    background: var(--accent-soft);
+    border: 2px solid var(--accent);
+    border-radius: 3px;
+    padding: var(--s3);
+    text-align: center;
+    font-family: var(--mono);
+  }
+
+  .pure-core .name { font-size: 0.82rem; font-weight: 700; color: var(--accent); letter-spacing: 0.06em; }
+  .pure-core .sig { font-size: 0.68rem; color: var(--ink-2); margin-top: 0.4rem; }
+  .pure-core .no { font-size: 0.62rem; color: var(--ink-3); margin-top: 0.55rem; line-height: 1.5; }
+
+  /* ---------- charts ---------- */
+
+  .chart {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: var(--s3);
+    overflow-x: auto;
+  }
+
+  .chart svg { display: block; min-width: 480px; width: 100%; height: auto; }
+  .chart .axis { stroke: var(--rule-strong); stroke-width: 1; }
+  .chart .grid { stroke: var(--rule); stroke-width: 1; stroke-dasharray: 2 3; }
+  .chart .bar-bad { fill: var(--crit); }
+  .chart .bar-ok { fill: var(--accent); }
+  .chart .bar-warn { fill: var(--warn); }
+  .chart .tick { fill: var(--ink-3); font-family: var(--mono); font-size: 9px; }
+  .chart .tick-strong { fill: var(--ink-2); font-family: var(--mono); font-size: 9.5px; font-weight: 600; }
+  .chart .note { fill: var(--ink-3); font-family: var(--mono); font-size: 9px; }
+  .chart .band { fill: var(--accent-soft); }
+  .chart .band-bad { fill: var(--crit-soft); }
+
+  /* ---------- decision tree ---------- */
+
+  .tree {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: var(--s3);
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    line-height: 1.75;
+    color: var(--ink-2);
+    overflow-x: auto;
+  }
+
+  .tree b { color: var(--ink); font-weight: 600; }
+  .tree .q { color: var(--ink); }
+  .tree .out { color: var(--accent); font-weight: 600; }
+  .tree .out-bad { color: var(--crit); font-weight: 600; }
+  .tree .why { color: var(--ink-3); }
+
+  /* ---------- Q&A ---------- */
+
+  .qa { display: flex; flex-direction: column; gap: var(--s3); margin-top: var(--s3); }
+
+  .qa-item {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-left: 3px solid var(--accent);
+    border-radius: 3px;
+    padding: var(--s3);
+  }
+
+  .qa-item h4 {
+    margin: 0 0 0.6rem;
+    font-family: var(--mono);
+    font-size: 0.82rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--ink);
+  }
+
+  .qa-item p { font-size: 0.93rem; }
+  .qa-item p + p { margin-top: var(--s2); }
+
+  /* ---------- readiness ---------- */
+
+  .ready-row { display: flex; gap: 0.6rem; align-items: baseline; }
+  .ready-row .mark { font-family: var(--mono); font-weight: 700; }
+  .mark.yes { color: var(--accent); }
+  .mark.no { color: var(--crit); }
+  .mark.part { color: var(--warn); }
+
   @page { size: A4; margin: 18mm 15mm 16mm; }
 
   /* ---------- print ---------- */
@@ -685,7 +929,8 @@
     h2 .num { position: static; margin-bottom: 0.3rem; }
     p, li { orphans: 2; widows: 2; }
     .transcript, .tension, .arch-box, .arch-arrow,
-    .track, .scope-card, .thesis, .note, .caption { break-inside: avoid; }
+    .track, .scope-card, .thesis, .note, .caption,
+    .gantt-group, .lifeline, .chart, .tree, .qa-item, .pure { break-inside: avoid; }
     /* Tall tables may span pages — keep rows whole and repeat the header
        rather than shunting the whole table and stranding its heading. */
     .table-wrap { break-inside: auto; }
@@ -717,6 +962,8 @@
       <li><a href="#s11"><span class="n">11</span><span>Assumptions</span></a></li>
       <li><a href="#s12"><span class="n">12</span><span>Scope</span></a></li>
       <li><a href="#s13"><span class="n">13</span><span>Failure modes</span></a></li>
+      <li><a href="#s14"><span class="n">14</span><span>Production gap</span></a></li>
+      <li><a href="#s15"><span class="n">15</span><span>Likely questions</span></a></li>
       <li><a href="#glossary"><span class="n">—</span><span>Glossary</span></a></li>
     </ol>
   </nav>
@@ -1070,6 +1317,48 @@
         have to tell apart, and loses no behaviour.
       </p>
 
+
+      <div class="wide">
+        <div class="tree">
+<span class="q">a message arrives</span>
+ │
+ ├─ <span class="q">is it asking for anything at all?</span>
+ │   └─ no ──────────────────────────────────────── <span class="out">IGNORE</span>  <span class="why">“thanks!!”, “morning all”, two people talking</span>
+ │                                                            <span class="why">no request, no worker, no cost</span>
+ │
+ └─ yes
+     │
+     ├─ <span class="q">does it point at work already in flight?</span>
+     │   │   <span class="why">a demonstrative (“that”, “the Taiwan one”), a correction</span>
+     │   │   <span class="why">(“sorry, I meant”), or wording only a follow-up would use.</span>
+     │   │   <span class="why">being about the same topic is NOT enough.</span>
+     │   │
+     │   └─ no ──────────────────────────────────── <span class="out">NEW</span>  <span class="why">the safe answer, and the default</span>
+     │
+     └─ yes — in which way?
+         │
+         ├─ it changes what was asked ─────────────  <span class="out">AMEND</span>
+         │     └─ does the old research still hold?
+         │         ├─ yes  <span class="why">“also South China Sea”</span> ──── keep the tool results
+         │         └─ no   <span class="why">“I meant inflation”</span> ────── throw them away
+         │
+         ├─ it asks to stop ───────────────────────  <span class="out-bad">CANCEL</span>
+         │     └─ does the message name what to stop?
+         │         ├─ yes <span class="why">“never mind the Taiwan one”</span> ─ do it
+         │         └─ no  <span class="why">“no”, “stop”, “wait”</span> ─────── <b>ask first</b>
+         │
+         ├─ it is the same question, same portfolio  <span class="out">DUPLICATE</span>  <span class="why">one answer, both askers</span>
+         │     └─ <em>different</em> portfolio? ─────── <span class="out">NEW</span>  <span class="why">same words, different question</span>
+         │
+         └─ it needs an earlier answer first ──────  <span class="out">REFERENCE</span>  <span class="why">“and the second biggest?”</span>
+        </div>
+        <p class="caption">
+          <b>Everything hangs off two questions:</b> is this a request, and does it
+          point at something already running. Both default to the cautious answer,
+          because the costs of being wrong are not symmetric.
+        </p>
+      </div>
+
       <h3>Classifier errors must be asymmetric by design</h3>
 
       <div class="note">
@@ -1105,6 +1394,93 @@
         a fallback was applied &mdash; is logged and printable. It is the one part a
         reviewer should be able to audit directly.
       </p>
+
+      <h3>Measuring that, and finding it does not work</h3>
+
+      <p>
+        The argument above is sound. The thresholds implementing it &mdash;
+        <code>0.75</code> and <code>0.50</code> &mdash; were invented, so §&nbsp;10
+        measures them against a labelled set. The result is a negative one about
+        this design.
+      </p>
+
+      <div class="wide">
+        <div class="chart">
+          <svg viewBox="0 0 640 190" role="img" aria-label="Number line showing the confidence ranges of correct and incorrect classifications almost entirely overlapping">
+            <text class="tick-strong" x="0" y="12">where the classifier&rsquo;s confidence actually falls</text>
+            <rect class="band" x="232" y="34" width="378" height="26" rx="2"/>
+            <text class="tick-strong" x="0" y="51">correct</text>
+            <line class="axis" x1="522" y1="30" x2="522" y2="64"/>
+            <text class="tick" x="522" y="26" text-anchor="middle">mean 0.935</text>
+            <rect class="band-bad" x="232" y="76" width="351" height="26" rx="2"/>
+            <text class="tick-strong" x="0" y="93">mistakes</text>
+            <line class="axis" x1="394" y1="72" x2="394" y2="106"/>
+            <text class="tick" x="394" y="118" text-anchor="middle">mean 0.840</text>
+            <line class="axis" x1="70" y1="140" x2="610" y2="140"/>
+            <text class="tick" x="70" y="154" text-anchor="middle">0.60</text><text class="tick" x="205" y="154" text-anchor="middle">0.70</text><text class="tick" x="340" y="154" text-anchor="middle">0.80</text><text class="tick" x="475" y="154" text-anchor="middle">0.90</text><text class="tick" x="610" y="154" text-anchor="middle">1.00</text>
+            <line class="grid" x1="272" y1="30" x2="272" y2="140"/>
+            <text class="note" x="272" y="172" text-anchor="middle">our 0.75 cut-off</text>
+            <text class="note" x="0" y="172">gap between the means: +0.095</text>
+          </svg>
+        </div>
+        <p class="caption">
+          <b>The two bands are nearly the same band.</b> A threshold works by sitting
+          in a gap between right answers and wrong ones. There is no gap here.
+        </p>
+      </div>
+
+      <div class="wide">
+        <div class="chart">
+          <svg viewBox="0 0 640 215" role="img" aria-label="Bar chart of destroyed and redundant errors at each confidence threshold">
+            <text class="tick-strong" x="0" y="12">errors at each confidence threshold (152 observations)</text>
+            <line class="grid" x1="56" y1="128.7" x2="624" y2="128.7"/><text class="tick" x="50" y="131.7" text-anchor="end">10</text><line class="grid" x1="56" y1="81.3" x2="624" y2="81.3"/><text class="tick" x="50" y="84.3" text-anchor="end">20</text><line class="grid" x1="56" y1="34.0" x2="624" y2="34.0"/><text class="tick" x="50" y="37.0" text-anchor="end">30</text>
+            <line class="axis" x1="56" y1="176" x2="624" y2="176"/>
+            <rect class="bar-bad" x="69.2" y="157.1" width="21.3" height="18.9"/><rect class="bar-warn" x="92.5" y="157.1" width="21.3" height="18.9"/><text class="tick" x="91.5" y="190" text-anchor="middle">0.00</text><text class="tick-strong" x="79.8" y="153.1" text-anchor="middle">4</text><text class="tick" x="103.2" y="153.1" text-anchor="middle">4</text><rect class="bar-bad" x="140.2" y="157.1" width="21.3" height="18.9"/><rect class="bar-warn" x="163.5" y="157.1" width="21.3" height="18.9"/><text class="tick" x="162.5" y="190" text-anchor="middle">0.50</text><text class="tick-strong" x="150.8" y="153.1" text-anchor="middle">4</text><text class="tick" x="174.2" y="153.1" text-anchor="middle">4</text><rect class="bar-bad" x="211.2" y="157.1" width="21.3" height="18.9"/><rect class="bar-warn" x="234.5" y="157.1" width="21.3" height="18.9"/><text class="tick" x="233.5" y="190" text-anchor="middle">0.60</text><text class="tick-strong" x="221.8" y="153.1" text-anchor="middle">4</text><text class="tick" x="245.2" y="153.1" text-anchor="middle">4</text><rect class="bar-bad" x="282.2" y="157.1" width="21.3" height="18.9"/><rect class="bar-warn" x="305.5" y="142.9" width="21.3" height="33.1"/><text class="tick" x="304.5" y="190" text-anchor="middle">0.70</text><text class="tick-strong" x="292.9" y="153.1" text-anchor="middle">4</text><text class="tick" x="316.1" y="138.9" text-anchor="middle">7</text><rect class="bar-bad" x="353.2" y="157.1" width="21.3" height="18.9"/><rect class="bar-warn" x="376.5" y="138.1" width="21.3" height="37.9"/><text class="tick" x="375.5" y="190" text-anchor="middle">0.75</text><text class="tick-strong" x="363.9" y="153.1" text-anchor="middle">4</text><text class="tick" x="387.1" y="134.1" text-anchor="middle">8</text><rect class="bar-bad" x="424.2" y="161.8" width="21.3" height="14.2"/><rect class="bar-warn" x="447.5" y="133.4" width="21.3" height="42.6"/><text class="tick" x="446.5" y="190" text-anchor="middle">0.80</text><text class="tick-strong" x="434.9" y="157.8" text-anchor="middle">3</text><text class="tick" x="458.1" y="129.4" text-anchor="middle">9</text><rect class="bar-bad" x="495.2" y="166.5" width="21.3" height="9.5"/><rect class="bar-warn" x="518.5" y="109.7" width="21.3" height="66.3"/><text class="tick" x="517.5" y="190" text-anchor="middle">0.90</text><text class="tick-strong" x="505.9" y="162.5" text-anchor="middle">2</text><text class="tick" x="529.1" y="105.7" text-anchor="middle">14</text><rect class="bar-bad" x="566.2" y="176.0" width="21.3" height="0.0"/><rect class="bar-warn" x="589.5" y="38.7" width="21.3" height="137.3"/><text class="tick" x="588.5" y="190" text-anchor="middle">0.95</text><text class="tick" x="600.1" y="34.7" text-anchor="middle">29</text>
+            <rect class="bar-bad" x="56" y="196" width="10" height="9"/>
+            <text class="tick" x="71" y="204">destroyed a real question — silent, unrecoverable</text>
+            <rect class="bar-warn" x="376" y="196" width="10" height="9"/>
+            <text class="tick" x="391" y="204">answered needlessly — noisy, fine</text>
+          </svg>
+        </div>
+        <p class="caption">
+          <b>The threshold buys nothing until it buys too much.</b> From 0 to 0.90 the
+          red bars barely move while the amber ones triple. Only at 0.95 do destroyed
+          questions reach zero &mdash; by rejecting 29 predictions to save 4.
+        </p>
+      </div>
+
+      <p>
+        A threshold cannot buy this asymmetry, because legitimate amendments and
+        mistaken ones arrive at the same confidence. Two things replace it.
+      </p>
+
+      <p>
+        <strong>A signal that is not confidence.</strong> Whether the message
+        <em>names what it refers to</em> separates them cleanly. &ldquo;Never mind the
+        Taiwan one&rdquo; names its target; a bare &ldquo;no&rdquo; &mdash; quite
+        possibly aimed at another person in the chat &mdash; does not. So a
+        <code>CANCEL</code> whose message names nothing <strong>asks instead of
+        acting</strong>, and that costs no parked state: if they meant it, they say so
+        again, and the reply names its target by construction. <code>CANCEL</code>
+        precision is 1.00 with this in place.
+      </p>
+
+      <p>
+        <strong>Fixing the error the measurement actually found.</strong> The dominant
+        failure was not over-cancelling but <strong>over-merging</strong> &mdash;
+        reaching for <code>AMEND</code> and <code>DUPLICATE</code> where the honest
+        answer was <code>NEW</code>. Telling the classifier about that specific bias,
+        and that topical similarity is not evidence of relatedness, cut destroyed
+        questions from 9 to 6 and <code>DUPLICATE</code>&rarr;<code>AMEND</code>
+        errors from 4 to 1.
+      </p>
+
+      <p>
+        The thresholds stay, because they cost little and catch the genuinely
+        low-confidence tail. They are no longer load-bearing, and the document no
+        longer pretends they are.
+      </p>
+
     </section>
 
     <!-- ===================== 5 ===================== -->
@@ -1238,6 +1614,41 @@
         something else carries them out.
       </p>
 
+      <div class="wide">
+        <div class="pure">
+          <div class="pure-side">
+            <h4>Events in</h4>
+            <ul>
+              <li><code>Classified</code> — a message, already related to the live set</li>
+              <li><code>StageChanged</code> — a worker moved on</li>
+              <li><code>Completed</code> — an answer is ready</li>
+              <li><code>Failed</code> — a worker gave up</li>
+            </ul>
+          </div>
+          <div class="pure-core">
+            <div class="name">SEQUENCER</div>
+            <div class="sig">handle(event)<br>→ [commands]</div>
+            <div class="no">no clock<br>no network<br>no model calls</div>
+          </div>
+          <div class="pure-side">
+            <h4>Commands out</h4>
+            <ul>
+              <li><code>Dispatch</code> — start a worker</li>
+              <li><code>Inject</code> — hand it a change</li>
+              <li><code>Abort</code> — try to stop it</li>
+              <li><code>Deliver</code> — say something in the chat</li>
+            </ul>
+          </div>
+        </div>
+        <p class="caption">
+          <b>It decides; something else acts.</b> Time arrives <em>on</em> the event
+          rather than being read, so the same function runs unchanged in the
+          simulator and against real models — and a fuzzer can drive it thousands
+          of times a second with no network.
+        </p>
+      </div>
+
+
       <p>This is not stylistic. It buys three concrete things:</p>
 
       <ul>
@@ -1340,6 +1751,41 @@
         failing on command when the check is turned off.
       </p>
 
+
+      <div class="wide">
+        <div class="lifeline">
+          <svg viewBox="0 0 640 230" role="img" aria-label="Two lifelines showing an abort losing the race against a worker finishing, and the version check discarding the stale result">
+            <text class="ll-label-strong" x="0" y="14">Sequencer</text>
+            <line class="ll-rule" x1="90" y1="26" x2="630" y2="26"/>
+
+            <text class="ll-label-strong" x="0" y="150">worker (v1)</text>
+            <line class="ll-rule" x1="90" y1="162" x2="630" y2="162"/>
+            <rect class="ll-span-dead" x="90" y="150" width="380" height="24" rx="2"/>
+            <text class="ll-label" x="170" y="167">still drafting its answer&hellip;</text>
+
+            <text class="ll-label" x="95" y="48">“also South China Sea”</text>
+            <text class="ll-label-strong" x="95" y="62">version 1 → 2</text>
+
+            <path class="ll-arrow-bad" d="M230 70 L230 145"/>
+            <text class="ll-label-bad" x="238" y="100">abort sent&hellip;</text>
+            <text class="ll-label-bad" x="238" y="114">&hellip;and lost the race</text>
+
+            <path class="ll-arrow" d="M470 145 L470 36"/>
+            <text class="ll-label" x="330" y="196">finishes anyway, reports v1</text>
+
+            <text class="ll-label-good" x="478" y="52">version check:</text>
+            <text class="ll-label-good" x="478" y="66">v1 ≠ v2 → discard</text>
+
+            <text class="ll-label" x="0" y="215">We never needed the worker to stop. We only needed to not believe it.</text>
+          </svg>
+        </div>
+        <p class="caption">
+          <b>This is not hypothetical.</b> The simulator models the race faithfully,
+          and <code>--no-version-gate</code> turns the check off so you can watch the
+          out-of-date answer reach the chat instead.
+        </p>
+      </div>
+
       <h3>(c) Preserve work in proportion to what it cost</h3>
       <p>
         Tool calls are expensive in both time and tokens, and are frequently still valid
@@ -1348,6 +1794,48 @@
         it already has, and one that <strong>replaces the premise</strong> throws them
         away and starts over.
       </p>
+
+
+      <div class="wide">
+        <div class="lifeline">
+          <svg viewBox="0 0 640 290" role="img" aria-label="A worker's life divided into planning, tool call and drafting, with three arrows showing what happens when an amendment arrives at each point">
+            <text class="ll-label-strong" x="0" y="14">one worker, start to finish</text>
+
+            <rect class="ll-span" x="60" y="30" width="110" height="26" rx="2"/>
+            <text class="ll-label" x="78" y="47">PLANNING</text>
+            <rect class="ll-span" x="170" y="30" width="300" height="26" rx="2"/>
+            <text class="ll-label" x="265" y="47">TOOL_CALL — the expensive part</text>
+            <rect class="ll-span" x="470" y="30" width="150" height="26" rx="2"/>
+            <text class="ll-label" x="505" y="47">DRAFTING</text>
+
+            <line class="ll-tick" x1="170" y1="24" x2="170" y2="66"/>
+            <line class="ll-tick" x1="470" y1="24" x2="470" y2="66"/>
+            <text class="ll-label" x="140" y="76">↑ checkpoint</text>
+            <text class="ll-label" x="440" y="76">↑ checkpoint</text>
+
+            <path class="ll-arrow" d="M110 125 L110 60"/>
+            <text class="ll-label-strong" x="0" y="140">&ldquo;actually&hellip;&rdquo; arrives here</text>
+            <text class="ll-label" x="60" y="155">nothing has been paid for yet</text>
+            <text class="ll-label-good" x="60" y="170">→ abort and start again</text>
+
+            <path class="ll-arrow" d="M300 205 L300 60"/>
+            <text class="ll-label-strong" x="190" y="220">&hellip;or here</text>
+            <text class="ll-label" x="190" y="235">the lookup is already paid for</text>
+            <text class="ll-label-good" x="190" y="250">→ let it finish, apply at the next checkpoint</text>
+
+            <path class="ll-arrow-bad" d="M545 125 L545 60"/>
+            <text class="ll-label-strong" x="470" y="140">&hellip;or here</text>
+            <text class="ll-label" x="470" y="155">too late to stop it</text>
+            <text class="ll-label-bad" x="470" y="170">→ it finishes anyway</text>
+            <text class="ll-label-bad" x="470" y="185">   (see §&nbsp;07b)</text>
+          </svg>
+        </div>
+        <p class="caption">
+          <b>The same message, three different right answers.</b> Which one applies
+          depends only on where the worker had got to — which is why §&nbsp;07 is a
+          matrix rather than a rule.
+        </p>
+      </div>
 
       <h3>The stage &times; relationship matrix</h3>
 
@@ -1509,6 +1997,85 @@
       </p>
 
       <div class="wide">
+        <div class="gantt">
+
+          <div class="gantt-group">
+            <div class="gantt-title">SERIAL <span class="verdict">— one at a time. Ben waits 23s for a 0.7s question.</span></div>
+            <div class="gantt-row">
+              <span class="gantt-label">Ana · slow</span>
+              <div class="gantt-track">
+                <div class="gantt-bar work" style="left:0%;width:93.75%">working &nbsp;→ answered 22.5s</div>
+              </div>
+            </div>
+            <div class="gantt-row">
+              <span class="gantt-label">Ben · fast</span>
+              <div class="gantt-track">
+                <div class="gantt-bar idle" style="left:2.1%;width:91.7%">queued — no free worker</div>
+                <div class="gantt-bar work" style="left:93.8%;width:3.2%"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="gantt-group">
+            <div class="gantt-title">STRICT_FIFO <span class="verdict">— work runs in parallel, then his answer is held 21.3s.</span></div>
+            <div class="gantt-row">
+              <span class="gantt-label">Ana · slow</span>
+              <div class="gantt-track">
+                <div class="gantt-bar work" style="left:0%;width:93.75%">working &nbsp;→ answered 22.5s</div>
+              </div>
+            </div>
+            <div class="gantt-row">
+              <span class="gantt-label">Ben · fast</span>
+              <div class="gantt-track">
+                <div class="gantt-bar work" style="left:2.1%;width:2.9%"></div>
+                <div class="gantt-bar wait" style="left:5%;width:88.8%">answer ready at 1.2s — buffered until Ana&rsquo;s is done</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="gantt-group">
+            <div class="gantt-title">DEPENDENCY_ORDER <span class="verdict">— shipped the moment it is ready. Same work, 19&times; sooner.</span></div>
+            <div class="gantt-row">
+              <span class="gantt-label">Ana · slow</span>
+              <div class="gantt-track">
+                <div class="gantt-bar work" style="left:0%;width:93.75%">working &nbsp;→ answered 22.5s</div>
+              </div>
+            </div>
+            <div class="gantt-row">
+              <span class="gantt-label">Ben · fast</span>
+              <div class="gantt-track">
+                <div class="gantt-bar work" style="left:2.1%;width:2.9%"></div>
+              </div>
+            </div>
+            <div class="gantt-row">
+              <span class="gantt-label"></span>
+              <div style="font-family:var(--mono);font-size:0.62rem;color:var(--accent);padding-left:5.4%">
+                ↑ answered 1.2s
+              </div>
+            </div>
+          </div>
+
+          <div class="gantt-axis">
+            <span></span>
+            <span class="ticks"><span>0s</span><span>6s</span><span>12s</span><span>18s</span><span>24s</span></span>
+          </div>
+
+          <div class="gantt-key">
+            <span><span class="swatch" style="background:var(--accent)"></span>working</span>
+            <span><span class="swatch" style="background:var(--rule)"></span>queued, no worker free</span>
+            <span><span class="swatch" style="background:var(--crit-soft);border:1px solid var(--crit)"></span>finished, but not allowed to ship</span>
+          </div>
+        </div>
+        <p class="caption">
+          <b>The same two questions, the same amount of work, three policies.</b>
+          Only the striped bar is pure loss: an answer that exists and is being
+          withheld. That is what <b>head-of-line delay</b> measures, and it is
+          the entire cost of insisting on arrival order.
+        </p>
+      </div>
+
+
+      <div class="wide">
         <div class="table-wrap">
           <table>
             <thead>
@@ -1571,6 +2138,57 @@
             </tbody>
           </table>
         </div>
+      </div>
+
+      <h3>Measuring the classifier</h3>
+
+      <p>
+        Everything else tests the <em>scheduler</em>. The classifier needs a different
+        instrument, because its failures are judgements rather than bugs.
+      </p>
+
+      <p>
+        <code>python -m chatsched eval</code> runs 38 labelled messages &mdash; each
+        against a realistic live request set, 14 of them marked genuinely ambiguous
+        &mdash; through real Haiku, and reports per-relationship precision and recall,
+        a confusion matrix, and the thing §&nbsp;04 actually claims: <strong>which
+        direction the errors go</strong>.
+      </p>
+
+      <div class="wide">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">relationship</th><th scope="col">precision</th><th scope="col">recall</th><th scope="col">support</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">NEW</th><td>1.00</td><td>0.81</td><td>32</td></tr>
+              <tr><th scope="row">AMEND</th><td>0.90</td><td>1.00</td><td>36</td></tr>
+              <tr><th scope="row">CANCEL</th><td>1.00</td><td>1.00</td><td>20</td></tr>
+              <tr><th scope="row">DUPLICATE</th><td>0.80</td><td>1.00</td><td>8</td></tr>
+              <tr><th scope="row">REFERENCE</th><td>0.89</td><td>1.00</td><td>16</td></tr>
+              <tr><th scope="row">IGNORE</th><td>1.00</td><td>0.95</td><td>40</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="caption">
+          <b>95% agreement overall; 96 of 96 on the clear-cut cases.</b> Every
+          remaining disagreement is on a message a person would also hesitate over.
+        </p>
+      </div>
+
+      <p>Two measurement details matter more than the headline number:</p>
+
+      <ul>
+        <li><strong>It repeats.</strong> The classifier is not deterministic &mdash; identical runs score between 92% and 97%. A single pass is an anecdote, so <code>--repeats</code> runs the whole set several times and reports the spread.</li>
+        <li><strong>It separates the hard cases.</strong> A good score on &ldquo;never mind the Taiwan one&rdquo; would hide a bad one on &ldquo;no&rdquo;. Clear-cut and ambiguous cases are reported apart.</li>
+      </ul>
+
+      <div class="note">
+        The labels are my judgement, which is the honest limitation: this measures
+        agreement with me, not ground truth. What it found is in §&nbsp;04, and it
+        <em>changed the design</em> &mdash; which is the point of building it rather
+        than asserting the thresholds were fine.
       </div>
 
       <h3>Randomised testing</h3>
@@ -1737,6 +2355,245 @@
         <li><strong>Member identity is trusted, not verified.</strong> The system keeps one member&rsquo;s answers away from another, but takes the member on the inbound message at face value. Real access control belongs at the chat boundary, not here.</li>
         <li><strong>The classifier is the weakest link.</strong> Everything downstream depends on it relating messages to requests correctly, and that is a genuinely hard judgement. The asymmetric thresholds make its errors recoverable rather than destructive, and the decision log makes every call auditable &mdash; but neither makes it right.</li>
       </ul>
+    </section>
+
+
+    <!-- ===================== 14 ===================== -->
+    <section id="s14">
+      <h2><span class="num">&sect; 14</span>How far from production is this?</h2>
+
+      <p>
+        Honestly: it is a working prototype and a design artifact, not a system you
+        could put in front of members on Monday. The scheduling core is in good
+        shape; almost everything around it is deliberately absent. Being specific
+        about which is which seems more useful than a verdict.
+      </p>
+
+      <div class="wide">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">Concern</th><th scope="col">State</th><th scope="col">What is missing</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Scheduling correctness</th>
+                <td><span class="mark yes">ready</span></td>
+                <td>Nine invariants, ~80,000 randomised runs, every relationship and policy exercised.</td>
+              </tr>
+              <tr>
+                <th scope="row">Behaviour under change</th>
+                <td><span class="mark yes">ready</span></td>
+                <td>The §&nbsp;07 matrix is implemented and tested, including the cases that arrive too late.</td>
+              </tr>
+              <tr>
+                <th scope="row">Classification quality</th>
+                <td><span class="mark part">measured</span></td>
+                <td>95% agreement, but that means roughly 1 message in 20 is misread. Tolerable because the errors are shaped to be recoverable &mdash; not because they are rare.</td>
+              </tr>
+              <tr>
+                <th scope="row">Surviving a restart</th>
+                <td><span class="mark no">missing</span></td>
+                <td>The event log exists but is never replayed. Because the Sequencer is a pure fold over events, recovery is close to free &mdash; it simply is not written.</td>
+              </tr>
+              <tr>
+                <th scope="row">Sustained load</th>
+                <td><span class="mark no">missing</span></td>
+                <td>No backpressure. If messages arrive faster than the pool drains, the queue grows without limit and nobody is told.</td>
+              </tr>
+              <tr>
+                <th scope="row">Many chats at once</th>
+                <td><span class="mark no">missing</span></td>
+                <td>One Sequencer per chat, but nothing supervises them. A single busy chat can take the whole worker pool.</td>
+              </tr>
+              <tr>
+                <th scope="row">Who may see what</th>
+                <td><span class="mark part">partial</span></td>
+                <td>Members' questions and answers are kept apart, but the member on an inbound message is taken at face value. Real access control belongs at the chat boundary.</td>
+              </tr>
+              <tr>
+                <th scope="row">Cost control</th>
+                <td><span class="mark part">partial</span></td>
+                <td>Waste is measured but not acted on. No budget ceiling, and no debouncing of someone typing three corrections in four seconds.</td>
+              </tr>
+              <tr>
+                <th scope="row">Operability</th>
+                <td><span class="mark no">missing</span></td>
+                <td>No tracing, no metrics export, no alerting. The event log is the only forensic surface.</td>
+              </tr>
+              <tr>
+                <th scope="row">Real chat integration</th>
+                <td><span class="mark no">missing</span></td>
+                <td>No Slack or Discord transport. Deliberate &mdash; see §&nbsp;12.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="caption">
+          <b>The pattern is deliberate.</b> Everything marked ready is something the
+          brief asked about; everything missing is infrastructure that is well
+          understood and would have crowded out the part being judged.
+        </p>
+      </div>
+
+      <h3>What I would build next, in order</h3>
+
+      <ul>
+        <li><strong>Recovery by replaying the log.</strong> The best effort-to-payoff ratio on the list, and it demonstrates why the Sequencer was made pure rather than merely asserting it.</li>
+        <li><strong>Backpressure.</strong> The one missing piece that turns a busy day into an outage rather than a slowdown.</li>
+        <li><strong>Debouncing changes.</strong> The system already measures wasted spend; it should act on it instead of only reporting it.</li>
+        <li><strong>Fair sharing across chats.</strong> Per-chat caps are the obvious knob; proper scheduling is not written.</li>
+        <li><strong>Streaming delivery</strong> &mdash; and an answer to the question it raises: what does &ldquo;this replaces my earlier answer&rdquo; mean when half of that answer has already been read? I do not know, and that is the most interesting open question here.</li>
+      </ul>
+    </section>
+
+    <!-- ===================== 15 ===================== -->
+    <section id="s15">
+      <h2><span class="num">&sect; 15</span>Questions you might reasonably ask</h2>
+
+      <p>
+        Each of these is a decision that could have gone the other way, with the
+        reason it did not.
+      </p>
+
+      <div class="qa">
+
+        <div class="qa-item">
+          <h4>Why is the Sequencer a pure function? That looks like dogma.</h4>
+          <p>
+            It buys three specific things. The claim in §&nbsp;05 &mdash; that the
+            shared-state component does no inference &mdash; stops being a promise and
+            becomes something the shape of the code enforces. The races in §&nbsp;08
+            cannot occur, because one event is handled start to finish. And it is the
+            only reason the fuzzer exists: a function with no I/O can be driven tens of
+            thousands of times per second.
+          </p>
+          <p>
+            The cost is that something else has to carry out the commands, and that
+            seam is where two real bugs appeared &mdash; live mode silently ignoring
+            fields the Sequencer sent it. The invariants now check for exactly that.
+          </p>
+        </div>
+
+        <div class="qa-item">
+          <h4>Isn&rsquo;t &ldquo;ordered&rdquo; just FIFO? You redefined the requirement to make it easier.</h4>
+          <p>
+            That is the fair challenge, and the answer is that FIFO is one way to buy
+            four properties, not the property itself. Ask what a reader needs &mdash;
+            to know what an answer answers, what is still outstanding, which answers
+            are live, and that a follow-up arrives after what it follows &mdash; and
+            only the last involves order at all.
+          </p>
+          <p>
+            It is also falsifiable rather than rhetorical. <code>STRICT_FIFO</code> is
+            implemented, so if literal order is genuinely required you switch one
+            policy and pay 21 seconds of head-of-line delay knowingly. The argument is
+            that you should not pay it by accident.
+          </p>
+        </div>
+
+        <div class="qa-item">
+          <h4>Why version numbers rather than cancelling properly?</h4>
+          <p>
+            Because reliably stopping distributed work is hard and ignoring out-of-date
+            work is trivial. The stop signal races the work finishing and sometimes
+            loses &mdash; which is not hypothetical, it is modelled and demonstrable.
+            We still try to stop superseded workers, to save money, but correctness
+            never depends on it landing.
+          </p>
+        </div>
+
+        <div class="qa-item">
+          <h4>Five relationships. Why not three, or nine?</h4>
+          <p>
+            Each one earns its place by producing behaviour the others cannot:
+            <code>REFERENCE</code> creates the only dependency edge in the system,
+            <code>DUPLICATE</code> is the only one that avoids paying twice,
+            <code>IGNORE</code> is the only one that costs nothing at all. Widening,
+            narrowing and replacing a question collapse into one class with one
+            boolean, because the only thing that differs is whether the research
+            survives.
+          </p>
+          <p>
+            <code>MERGE</code> and <code>SPLIT</code> are designed and not built: they
+            carry the matrix&rsquo;s highest implementation cost for its rarest cases,
+            and they are the two a small classifier is least able to tell apart.
+          </p>
+        </div>
+
+        <div class="qa-item">
+          <h4>You measured your own mitigation and it failed. Why keep it?</h4>
+          <p>
+            Because the thresholds still catch a genuinely low-confidence tail and cost
+            almost nothing. What changed is what the document claims: they are no
+            longer described as the mechanism that makes errors asymmetric, because the
+            data says they are not.
+          </p>
+          <p>
+            The replacement is a different signal entirely &mdash; whether the message
+            names what it refers to. &ldquo;Never mind the Taiwan one&rdquo; does; a
+            bare &ldquo;no&rdquo; does not, and might not even be addressed to the
+            agent. That distinction is clean where confidence is not.
+          </p>
+        </div>
+
+        <div class="qa-item">
+          <h4>Why mock the tools? Real ones would be more convincing.</h4>
+          <p>
+            The opposite, for the thing being tested. Reproducing &ldquo;the amendment
+            arrives <em>during</em> the tool call&rdquo; requires controlling exactly
+            when that call returns; a real API makes the race unreproducible and the
+            scenario becomes a coin flip.
+          </p>
+          <p>
+            So replay is mocked and deterministic, and a live mode runs the same
+            Sequencer against real Haiku and Opus so the architecture can be seen doing
+            the actual job. Both exist because they answer different questions.
+          </p>
+        </div>
+
+        <div class="qa-item">
+          <h4>What is the weakest part?</h4>
+          <p>
+            The classifier, and it is not close. Everything downstream depends on it
+            relating messages to requests correctly, and at 95% agreement roughly one
+            message in twenty is misread. That is why the errors are shaped rather than
+            merely counted, why destructive readings ask instead of acting, and why
+            every decision it makes is logged with its confidence and reasoning.
+          </p>
+          <p>
+            The second weakest is that it is all one process with no backpressure. A
+            busy enough day degrades into an unbounded queue rather than a graceful
+            slowdown.
+          </p>
+        </div>
+
+        <div class="qa-item">
+          <h4>What surprised you?</h4>
+          <p>
+            That the fuzzer found four real bugs the hand-written tests did not, and
+            that two of them lived in the window the design document had already named
+            as a known weakness &mdash; identified in prose, unhandled in code.
+          </p>
+          <p>
+            And that my own agent had head-of-line blocking in its ingest loop: a
+            stalled classifier call would block every later message, in a system built
+            to remove exactly that.
+          </p>
+        </div>
+
+        <div class="qa-item">
+          <h4>What would you change about the approach, not the code?</h4>
+          <p>
+            I would build the eval first. Measuring the classifier changed a design
+            decision; writing the thresholds down from intuition and defending them in
+            prose for several hours did not. The same is probably true of the ordering
+            policies &mdash; the comparison table settled arguments the design document
+            could only assert.
+          </p>
+        </div>
+
+      </div>
     </section>
 
     <!-- ===================== glossary ===================== -->
