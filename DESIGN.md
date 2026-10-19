@@ -304,7 +304,7 @@ Four components. Only one of them holds state shared between requests, and it
 is deliberately the cheap one.
 
 ```
-            chat messages  (append-only log on disk — replayable)
+            chat messages
                     │
                     ▼
         ┌───────────────────────┐
@@ -312,7 +312,7 @@ is deliberately the cheap one.
         │   claude-haiku-4-5    │   request set (§4) and emits one command.
         │                       │   Runs on everything, so it must be cheap.
         └───────────┬───────────┘
-                    │  NEW / AMEND / CANCEL / DUPLICATE / REFERENCE
+                    │  NEW / AMEND / CANCEL / DUPLICATE / REFERENCE / IGNORE
                     ▼
     ╔═══════════════════════════════════════════════╗
     ║         SEQUENCER   (one per chat)            ║  ← the only shared state.
@@ -322,6 +322,12 @@ is deliberately the cheap one.
     ║   · admission  — what is allowed to start     ║    No model calls here.
     ║   · delivery   — what is allowed to ship      ║
     ╚═══╤═══════════════════════════════════════╤═══╝
+        │                                       │
+        │   every event above is appended to an append-only log on disk
+        │   *before* it is handled. The Sequencer is a pure fold over that
+        │   log, so replaying it rebuilds the chat exactly — which is all
+        │   crash recovery is here (§14).
+        │                                       │
         │ start (request, version)              │ results, version-checked
         ▼                                       │
     ┌───────────────────────────────┐           │
@@ -441,7 +447,7 @@ model, never reads the time (time arrives *on* each event), and never performs
 I/O. It returns a list of instructions — *start this worker*, *stop that one*,
 *ship this answer* — and something else carries them out.
 
-This is not stylistic. It buys three concrete things:
+This is not stylistic. It buys four concrete things:
 
 1. **It makes §5's claim structural.** "The Sequencer does no inference" stops
    being a promise and becomes something the type of the function enforces.
@@ -449,6 +455,16 @@ This is not stylistic. It buys three concrete things:
    finish, so there is no moment where two things are half-applied.
 3. **It makes the testing in §10 possible at all.** A pure function can be
    driven by a fuzzer thousands of times per second with no network calls.
+4. **Crash recovery comes free.** If the whole state is a fold over events,
+
+   ```
+   state = fold(handle, events)
+   ```
+
+   then persisting the events *is* persisting the state. Recovery is replaying
+   the log — no checkpoint format, no snapshot to keep in sync with the thing
+   it describes, no reconciliation. §14 was going to list this as future work;
+   it turned out to be about eighty lines, which is the point.
 
 The same Sequencer runs unchanged in the simulator and in live mode against
 real models. Only the thing driving it differs.
@@ -760,6 +776,35 @@ quietly stop working: one test requires the gate to hold, and the other
 requires it to fail when switched off. A safety mechanism nobody has ever
 watched fail is indistinguishable from one that does nothing.
 
+### Crash recovery, demonstrated the same way
+
+The same standard applies to §14's claim that recovery falls out of the
+Sequencer being a pure fold. Asserting it is cheap; showing it is not:
+
+```
+$ python -m chatsched run --scenario transcript --journal runs/t.jsonl
+$ python -m chatsched recover runs/t.jsonl --crash-after 6
+
+  15 events in runs/t.jsonl
+  recovered 3 requests under DEPENDENCY_ORDER, pool 3
+
+    r1  v2  DELIVERED  Ana   What's my exposure to a Taiwan escalation?
+    r2  v1  DELIVERED  Ben   Is NVDA still my biggest position?
+    r3  v1  DELIVERED  Ben   And the second biggest?
+
+  crash after event 6 of 15, recover, carry on:
+    ✓ identical to the run that never crashed
+```
+
+The test suite is stricter than the demo. For every scenario it kills the run
+after **every** event in turn — not one chosen point — recovers from the log,
+feeds it the events it had not yet seen, and asserts the final state is
+identical to the run that never died. The fuzzer then does the same to
+randomly generated chats at a random crash point.
+
+That last part matters more than it looks. Recovery that produces a *plausible*
+state is worse than no recovery, because nobody notices it is wrong.
+
 ### Scenario suite
 
 Nine replayable fixtures, each targeting one failure mode. Every scenario runs
@@ -836,7 +881,7 @@ the reasons given below.
 | `BOUNDED_REORDER(k)` policy | Ship out of order, but never more than *k* places ahead of the oldest outstanding question. A real idea; three policies already prove the argument. |
 | Fair sharing across chats | One very busy chat can currently monopolise the worker pool. A per-chat cap is the obvious knob; real fair-share scheduling is not built. |
 | Real Slack or Discord integration | Authentication and webhooks are not what the brief grades. The replay harness demonstrates the same system better. |
-| Durable storage beyond the event log | Replay is what we need; surviving a crash is not under test. |
+| A database behind the event log | The append-only log is enough to rebuild any chat (§14). Indexing, retention and compaction are real work, and none of it changes a scheduling decision. |
 | Retries, backoff, rate limiting | Real, orthogonal, and well understood. |
 
 ---
@@ -870,7 +915,7 @@ is which seems more useful than a verdict.
 | **Scheduling correctness** | ready | Nine invariants, 15,000 randomised chats per soak run, every relationship and policy exercised. |
 | **Behaviour under change** | ready | The §7 matrix is implemented and tested, including the cases that arrive too late. |
 | **Classification quality** | measured | 95% agreement — so roughly 1 message in 20 is misread. Tolerable because the errors are *shaped* to be recoverable, not because they are rare. |
-| **Surviving a restart** | missing | The event log exists but is never replayed. Because the Sequencer is a pure fold over events, recovery is close to free — it simply is not written. |
+| **Surviving a restart** | ready | Every event is written to an append-only log before it is handled, and replaying the log rebuilds the chat. Tested by killing the run after *every* event in every scenario, recovering, and asserting the final state is identical. |
 | **Sustained load** | missing | No backpressure. If messages arrive faster than the pool drains, the queue grows without limit and nobody is told. |
 | **Many chats at once** | missing | One Sequencer per chat, but nothing supervises them. A single busy chat can take the whole worker pool. |
 | **Who may see what** | partial | Members' questions and answers are kept apart, but the member on an inbound message is taken at face value. Real access control belongs at the chat boundary. |
@@ -884,15 +929,18 @@ would have crowded out the part being judged.
 
 ### What I would build next, in order
 
-1. **Recovery by replaying the log.** The best effort-to-payoff ratio on the
-   list, and it demonstrates why the Sequencer was made pure rather than merely
-   asserting it.
-2. **Backpressure.** The one missing piece that turns a busy day into an outage
+1. **Backpressure.** The one missing piece that turns a busy day into an outage
    rather than a slowdown.
-3. **Debouncing changes.** The system already measures wasted spend; it should
+2. **Debouncing changes.** The system already measures wasted spend; it should
    act on it instead of only reporting it.
-4. **Fair sharing across chats.** Per-chat caps are the obvious knob; proper
+3. **Fair sharing across chats.** Per-chat caps are the obvious knob; proper
    scheduling is not written.
+4. **Exactly-once delivery across a restart.** Recovery rebuilds *state*
+   correctly, but the commands the fold regenerates — including answers that
+   already reached the chat — are discarded rather than reconciled. A worker
+   that was mid-flight when the process died is simply lost work. Getting this
+   right needs the delivery journal consulted on replay, which is a day's work
+   and was not the part being judged.
 5. **Streaming delivery** — and an answer to the question it raises: what does
    "this replaces my earlier answer" mean when half of that answer has already
    been read? I do not know, and that is the most interesting open question here.

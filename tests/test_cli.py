@@ -110,3 +110,46 @@ def test_an_exported_key_beats_the_dotenv_file(monkeypatch, tmp_path):
 
 def test_a_missing_dotenv_is_not_an_error(tmp_path):
     cli._load_dotenv(tmp_path / "nope.env")
+
+
+# ------------------------------------------------------- recovery (§14) --
+
+
+def test_run_writes_an_event_log_when_asked(tmp_path, capsys):
+    log = tmp_path / "events.jsonl"
+    assert cli.main(["run", "--scenario", "transcript", "--journal", str(log)]) == 0
+    assert "event log:" in capsys.readouterr().out
+    assert log.exists() and log.read_text().count("\n") > 10
+
+
+def test_recover_rebuilds_the_chat_and_says_so(tmp_path, capsys):
+    log = tmp_path / "events.jsonl"
+    cli.main(["run", "--scenario", "transcript", "--journal", str(log)])
+    capsys.readouterr()
+
+    assert cli.main(["recover", str(log)]) == 0
+    out = capsys.readouterr().out
+    assert "identical to the run that never crashed" in out
+    assert "DELIVERED" in out
+
+
+def test_recover_accepts_an_explicit_crash_point(tmp_path, capsys):
+    log = tmp_path / "events.jsonl"
+    cli.main(["run", "--scenario", "busy_chat", "--journal", str(log)])
+    capsys.readouterr()
+
+    assert cli.main(["recover", str(log), "--crash-after", "3"]) == 0
+    assert "crash after event 3" in capsys.readouterr().out
+
+
+def test_recover_refuses_a_log_that_is_not_there(tmp_path, capsys):
+    """Exit 2, not a traceback — the exit code is what a shell reads."""
+    assert cli.main(["recover", str(tmp_path / "nope.jsonl")]) == 2
+    assert "no such event log" in capsys.readouterr().err
+
+
+def test_recover_refuses_an_empty_log(tmp_path, capsys):
+    empty = tmp_path / "empty.jsonl"
+    empty.write_text("")
+    assert cli.main(["recover", str(empty)]) == 2
+    assert "no events" in capsys.readouterr().err

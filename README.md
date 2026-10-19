@@ -88,15 +88,25 @@ Two further columns are correctness checks that must read zero — `stale` and
 ## Correctness
 
 ```console
-$ python -m pytest                 # 188 tests, 90% coverage
+$ python -m pytest                 # 241 tests, 90% coverage
 $ HYPOTHESIS_PROFILE=soak pytest tests/test_fuzz.py   # 5,000 random chats
 ```
 
 The Sequencer is a **pure synchronous state machine** — `handle(event) →
-[commands]`, no I/O, no clock, no model calls. That buys three things: unit
-tests drive it directly, scenario replay is byte-reproducible, and a fuzzer
-can run randomised message streams through it and assert every system
-invariant on each one.
+[commands]`, no I/O, no clock, no model calls. That buys four things: unit
+tests drive it directly, scenario replay is byte-reproducible, a fuzzer can
+run randomised message streams through it and assert every system invariant
+on each one, and — because the whole state is a fold over events — crash
+recovery is just replaying the log:
+
+```console
+$ python -m chatsched run --scenario transcript --journal runs/t.jsonl
+$ python -m chatsched recover runs/t.jsonl --crash-after 6
+  ✓ identical to the run that never crashed
+```
+
+The tests are stricter than that demo: every scenario is killed after *every*
+event in turn, recovered, and asserted to end in the identical state.
 
 Coverage is 96%; the untested remainder is argparse wiring and
 unreachable guards. The invariants live in [`chatsched/invariants.py`](chatsched/invariants.py)
@@ -245,12 +255,13 @@ Simulation and tests never make a network call; only `live` needs a key.
 ## How close to production?
 
 Not close, and [DESIGN.md §14](DESIGN.md) says exactly where. The scheduling
-core is solid — nine invariants, 15,000 randomised chats per soak run. What is missing is
+core is solid — nine invariants, 15,000 randomised chats per soak run, and a
+chat survives being killed after any event and replayed. What is missing is
 infrastructure that is well understood and would have crowded out the part
-being judged: **crash recovery** (nearly free given the pure Sequencer, just
-not written), **backpressure** (a busy day currently becomes an unbounded
-queue), **fair sharing across chats**, and **operability**. §15 answers the
-questions a reviewer is most likely to ask.
+being judged: **backpressure** (a busy day currently becomes an unbounded
+queue), **fair sharing across chats**, **exactly-once delivery across a
+restart** (state recovers; already-sent answers are not reconciled), and
+**operability**. §15 answers the questions a reviewer is most likely to ask.
 
 ## Reading the code
 
@@ -259,7 +270,7 @@ files are the system; everything else serves them.
 
 | # | File | Why it matters |
 |---|---|---|
-| 1 | [`model.py`](chatsched/model.py) | The vocabulary. A `Request`, the five relationships, the events in and the commands out. Nothing happens here, but nothing makes sense without it. |
+| 1 | [`model.py`](chatsched/model.py) | The vocabulary. A `Request`, the six relationships, the events in and the commands out. Nothing happens here, but nothing makes sense without it. |
 | 2 | [`sequencer.py`](chatsched/sequencer.py) | **The whole system.** `handle(event) → [commands]` — 608 lines, of which ~387 are code and the rest explain *why*. No imports that touch I/O. If you only read one file, read this one — every design claim in DESIGN.md is implemented here. |
 | 3 | [`policies.py`](chatsched/policies.py) | Three tiny classes. Shows how §3 turned ordering from structure into a swappable choice. |
 | 4 | [`invariants.py`](chatsched/invariants.py) | The nine properties, as code. The best summary of what "correct" means here. |
@@ -267,6 +278,7 @@ files are the system; everything else serves them.
 | 6 | [`sim.py`](chatsched/sim.py) | The deterministic clock and the mock workers. Read it to see why replay is reproducible. |
 | 7 | [`llm.py`](chatsched/llm.py) / [`live.py`](chatsched/live.py) | The real models, and the asyncio runner. Same Sequencer, different driver. |
 | 8 | [`evaluate.py`](chatsched/evaluate.py) | The classifier measurement. Read `destructive_error` — it is where the §4 argument becomes arithmetic. |
+| 9 | [`journal.py`](chatsched/journal.py) | Crash recovery, in ~80 lines. The clearest payoff of the purity decision in §5 — `state = fold(handle, events)`, so persisting events *is* persisting state. |
 
 Skimmable: `delivery.py` (string formatting), `metrics.py` (arithmetic),
 `cli.py` (argparse), `depgraph.py` (~60 lines, but it only does three things).

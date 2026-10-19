@@ -22,6 +22,7 @@ from pathlib import Path
 from time import perf_counter
 
 from .delivery import Transcript
+from .journal import EventLog
 from .model import (
     Abort,
     Completed,
@@ -83,6 +84,11 @@ class Simulation:
     version_gate: bool = True
     triage: Triage = field(default_factory=ScriptedTriage)
     work: dict[str, Work] = field(default_factory=dict)
+    #: Optional append-only event log. Every event entering the Sequencer is
+    #: written here before it is handled, which is what makes the run
+    #: recoverable (§14). None means run without durability, which is what
+    #: the test suite wants almost everywhere.
+    journal: "EventLog | None" = None
 
     def __post_init__(self) -> None:
         self.seq = Sequencer(
@@ -213,6 +219,12 @@ class Simulation:
     # -- command application ----------------------------------------------
 
     def _feed(self, event) -> None:
+        # Logged *before* it is handled. An event that changed the state but
+        # never reached the log is unrecoverable; one that reached the log but
+        # was never handled simply replays. Only one of those two orderings
+        # is safe.
+        if self.journal is not None:
+            self.journal.append(event)
         start = perf_counter()
         commands = self.seq.handle(event)
         self.sequencer_times.append(perf_counter() - start)

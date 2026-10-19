@@ -5,6 +5,8 @@
     python -m chatsched compare  --all
     python -m chatsched compare  --scenario supersede --no-version-gate
     python -m chatsched live     --scenario transcript        (real model calls)
+    python -m chatsched run      --scenario burst --journal runs/burst.jsonl
+    python -m chatsched recover  runs/burst.jsonl --crash-after 6
 """
 
 from __future__ import annotations
@@ -15,23 +17,29 @@ import sys
 from pathlib import Path
 
 from . import invariants, metrics
+from .journal import EventLog, read as read_log, replay, state_digest
 from .policies import POLICIES, get_policy
 from .sim import SCENARIO_DIR, Simulation, load_scenario
 
 ALL_POLICIES = ["SERIAL", "STRICT_FIFO", "DEPENDENCY_ORDER"]
 
 
-def _run(name: str, policy_name: str, pool_size: int, version_gate: bool):
+def _run(name: str, policy_name: str, pool_size: int, version_gate: bool,
+         journal_path: str | None = None):
     messages, work, title = load_scenario(name)
     policy = get_policy(policy_name)
+    log = EventLog(journal_path) if journal_path else None
     sim = Simulation(
         messages=messages,
         work=work,
         policy=policy,
         pool_size=pool_size,
         version_gate=version_gate,
+        journal=log,
     )
     result = sim.run()
+    if log is not None:
+        log.close()
     violations = invariants.check(
         result.sequencer, result.transcript, policy, pool_size
     )
@@ -47,7 +55,8 @@ def _run(name: str, policy_name: str, pool_size: int, version_gate: bool):
 
 def cmd_run(args) -> int:
     title, result, violations, stats = _run(
-        args.scenario, args.policy, args.pool_size, not args.no_version_gate
+        args.scenario, args.policy, args.pool_size, not args.no_version_gate,
+        journal_path=args.journal,
     )
     print(f"\n{title}")
     print(f"policy: {stats.policy}   pool: {args.pool_size}"
@@ -61,7 +70,52 @@ def cmd_run(args) -> int:
             print(f"  ✗ {v}")
     else:
         print("\n✓ all invariants hold")
+    if args.journal:
+        print(f"\nevent log: {args.journal}   "
+              f"(replay it with: python -m chatsched recover {args.journal})")
     return 1 if violations and not args.no_version_gate else 0
+
+
+def cmd_recover(args) -> int:
+    """Rebuild a chat's state from its event log, and show that dying partway
+    through changes nothing (DESIGN.md §14).
+
+    The Sequencer is a pure fold over events, so this is the whole of crash
+    recovery: read the log, fold it, carry on.
+    """
+    path = Path(args.log)
+    if not path.exists():
+        print(f"no such event log: {path}", file=sys.stderr)
+        return 2
+
+    events = list(read_log(path))
+    if not events:
+        print(f"{path} contains no events", file=sys.stderr)
+        return 2
+
+    policy = get_policy(args.policy)
+    whole = replay(events, pool_size=args.pool_size, policy=policy)
+    print(f"\n{len(events)} events in {path}")
+    print(f"recovered {len(whole.requests)} requests under "
+          f"{policy.name}, pool {args.pool_size}\n")
+
+    for rid, req in sorted(whole.requests.items()):
+        who = ", ".join(req.askers)
+        print(f"  {rid}  v{req.version}  {req.stage.value:<10} {who:<14} {req.requote()}")
+
+    cut = args.crash_after
+    if cut is None:
+        cut = len(events) // 2
+    cut = max(0, min(cut, len(events)))
+
+    survivor = replay(events[:cut], pool_size=args.pool_size, policy=get_policy(args.policy))
+    for ev in events[cut:]:
+        survivor.handle(ev)
+
+    same = state_digest(survivor) == state_digest(whole)
+    print(f"\ncrash after event {cut} of {len(events)}, recover, carry on:")
+    print(f"  {'✓ identical to the run that never crashed' if same else '✗ STATE DIVERGED'}")
+    return 0 if same else 1
 
 
 def cmd_compare(args) -> int:
@@ -161,7 +215,21 @@ def main(argv: list[str] | None = None) -> int:
     p_run = sub.add_parser("run", help="replay one scenario under one policy")
     common(p_run)
     p_run.add_argument("--policy", default="DEPENDENCY_ORDER", choices=sorted(POLICIES))
+    p_run.add_argument("--journal", metavar="PATH",
+                       help="append every event to a durable log, so the run "
+                            "can be recovered with `recover`")
     p_run.set_defaults(func=cmd_run)
+
+    p_rec = sub.add_parser("recover",
+                           help="rebuild a chat from its event log (§14)")
+    p_rec.add_argument("log", help="path to a .jsonl event log")
+    p_rec.add_argument("--policy", default="DEPENDENCY_ORDER", choices=sorted(POLICIES),
+                       help="must match the run that produced the log")
+    p_rec.add_argument("--pool-size", type=int, default=3)
+    p_rec.add_argument("--crash-after", type=int, metavar="N",
+                       help="pretend the process died after N events "
+                            "(default: halfway)")
+    p_rec.set_defaults(func=cmd_recover)
 
     p_cmp = sub.add_parser("compare", help="all three policies, side by side")
     common(p_cmp)

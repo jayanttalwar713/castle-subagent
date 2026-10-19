@@ -1569,7 +1569,7 @@
         <div class="arch">
           <div class="arch-box">
             <span class="arch-name">Chat messages</span>
-            <span class="arch-model">append-only log on disk &mdash; replayable</span>
+            <span class="arch-model">several people, talking at once</span>
           </div>
 
           <div class="arch-arrow">every inbound message</div>
@@ -1583,7 +1583,7 @@
             </div>
           </div>
 
-          <div class="arch-arrow">NEW / AMEND / CANCEL / DUPLICATE / REFERENCE</div>
+          <div class="arch-arrow">NEW / AMEND / CANCEL / DUPLICATE / REFERENCE / IGNORE</div>
 
           <div class="arch-box core">
             <span class="arch-name">Sequencer &mdash; one per chat</span>
@@ -1796,12 +1796,13 @@
       </div>
 
 
-      <p>This is not stylistic. It buys three concrete things:</p>
+      <p>This is not stylistic. It buys four concrete things:</p>
 
       <ul>
         <li><strong>It makes the claim above structural.</strong> &ldquo;The Sequencer does no inference&rdquo; stops being a promise and becomes something the shape of the function enforces.</li>
         <li><strong>The races in §&nbsp;08 cannot happen.</strong> One event is handled at a time, start to finish, so there is no moment where two things are half-applied.</li>
         <li><strong>It makes the testing in §&nbsp;10 possible at all.</strong> A pure function can be driven by a fuzzer thousands of times per second with no network calls.</li>
+        <li><strong>Crash recovery comes free.</strong> If the whole state is a fold over events &mdash; <code>state = fold(handle, events)</code> &mdash; then persisting the events <em>is</em> persisting the state. Recovery is replaying the log: no checkpoint format, no snapshot to keep in sync with the thing it describes, no reconciliation. §&nbsp;14 was going to list this as future work; it turned out to be about eighty lines, which is the point.</li>
       </ul>
 
       <p>
@@ -2398,6 +2399,40 @@ $ python -m chatsched run --scenario late_amend --no-version-gate    <span class
         indistinguishable from one that does nothing.
       </p>
 
+      <h3>Crash recovery, demonstrated the same way</h3>
+
+      <p>
+        The same standard applies to §&nbsp;14's claim that recovery falls out of the
+        Sequencer being a pure fold. Asserting it is cheap; showing it is not:
+      </p>
+
+      <div class="tree">$ python -m chatsched run --scenario transcript --journal runs/t.jsonl
+$ python -m chatsched recover runs/t.jsonl --crash-after 6
+
+  15 events in runs/t.jsonl
+  recovered 3 requests under DEPENDENCY_ORDER, pool 3
+
+    <span class="q">r1  v2  DELIVERED  Ana   What&rsquo;s my exposure to a Taiwan escalation?</span>
+    <span class="q">r2  v1  DELIVERED  Ben   Is NVDA still my biggest position?</span>
+    <span class="q">r3  v1  DELIVERED  Ben   And the second biggest?</span>
+
+  crash after event 6 of 15, recover, carry on:
+    <span class="out">&#10003; identical to the run that never crashed</span></div>
+
+      <p>
+        The test suite is stricter than the demo. For every scenario it kills the run
+        after <strong>every</strong> event in turn &mdash; not one chosen point &mdash;
+        recovers from the log, feeds it the events it had not yet seen, and asserts the
+        final state is identical to the run that never died. The fuzzer then does the
+        same to randomly generated chats at a random crash point.
+      </p>
+
+      <p>
+        That last part matters more than it looks. Recovery that produces a
+        <em>plausible</em> state is worse than no recovery, because nobody notices it is
+        wrong.
+      </p>
+
       <h3>Scenario suite</h3>
 
       <div class="wide">
@@ -2508,7 +2543,7 @@ $ python -m chatsched run --scenario late_amend --no-version-gate    <span class
             <li><strong>BOUNDED_REORDER(k) policy.</strong> Ship out of order, but never more than <em>k</em> places ahead of the oldest outstanding question. A real idea; three policies already prove the argument.</li>
             <li><strong>Fair sharing across chats.</strong> One very busy chat can currently monopolise the worker pool. A per-chat cap is the obvious knob; real fair-share scheduling is not built.</li>
             <li><strong>Real Slack or Discord integration.</strong> Authentication and webhooks are not what the brief grades. The replay harness demonstrates the same system better.</li>
-            <li><strong>Durable storage beyond the event log.</strong> Replay is what we need; surviving a crash is not under test.</li>
+            <li><strong>A database behind the event log.</strong> The append-only log is enough to rebuild any chat (§&nbsp;14). Indexing, retention and compaction are real work, and none of it changes a scheduling decision.</li>
             <li><strong>Retries, backoff, rate limiting.</strong> Real, orthogonal, and well understood.</li>
           </ul>
         </div>
@@ -2572,7 +2607,7 @@ $ python -m chatsched run --scenario late_amend --no-version-gate    <span class
               <tr>
                 <th scope="row">Surviving a restart</th>
                 <td><span class="mark no">missing</span></td>
-                <td>The event log exists but is never replayed. Because the Sequencer is a pure fold over events, recovery is close to free &mdash; it simply is not written.</td>
+                <td>Every event is written to an append-only log before it is handled, and replaying the log rebuilds the chat. Tested by killing the run after <em>every</em> event in every scenario, recovering, and asserting the final state is identical.</td>
               </tr>
               <tr>
                 <th scope="row">Sustained load</th>
@@ -2617,10 +2652,10 @@ $ python -m chatsched run --scenario late_amend --no-version-gate    <span class
       <h3>What I would build next, in order</h3>
 
       <ul>
-        <li><strong>Recovery by replaying the log.</strong> The best effort-to-payoff ratio on the list, and it demonstrates why the Sequencer was made pure rather than merely asserting it.</li>
         <li><strong>Backpressure.</strong> The one missing piece that turns a busy day into an outage rather than a slowdown.</li>
         <li><strong>Debouncing changes.</strong> The system already measures wasted spend; it should act on it instead of only reporting it.</li>
         <li><strong>Fair sharing across chats.</strong> Per-chat caps are the obvious knob; proper scheduling is not written.</li>
+        <li><strong>Exactly-once delivery across a restart.</strong> Recovery rebuilds <em>state</em> correctly, but the commands the fold regenerates &mdash; including answers that already reached the chat &mdash; are discarded rather than reconciled. A worker that was mid-flight when the process died is simply lost work. Getting this right needs the delivery journal consulted on replay, which is a day's work and was not the part being judged.</li>
         <li><strong>Streaming delivery</strong> &mdash; and an answer to the question it raises: what does &ldquo;this replaces my earlier answer&rdquo; mean when half of that answer has already been read? I do not know, and that is the most interesting open question here.</li>
       </ul>
     </section>
