@@ -699,7 +699,7 @@ zero.
 
 ### Scenario suite
 
-Eight replayable fixtures, each targeting one failure mode. Every scenario runs
+Nine replayable fixtures, each targeting one failure mode. Every scenario runs
 under all three policies, with all invariants asserted.
 
 | Scenario | What it targets |
@@ -711,6 +711,7 @@ under all three policies, with all invariants asserted.
 | Cancel after the draft is written | Wasted-spend accounting |
 | Premise replaced mid-flight, then again after delivery | Throwing work away, and the replacement notice |
 | Two members, same words | Deduplication must not cross a portfolio boundary |
+| A genuinely busy chat | Every relationship at once, including the ones that cost nothing |
 | Amendment during the final draft | The stop-signal race; the version-check demo |
 
 Tools are mocked with **controllable latency** — the simulator decides exactly
@@ -764,7 +765,7 @@ that happened.
 - Worker pool, change inboxes, checkpoint handling, version checking
 - Triage over the five relationships of §4, with the confidence asymmetry, and every decision auditable
 - Delivery: attribution, acknowledgements, addenda, replacement notices
-- Three policies, eight scenarios, the full metrics table
+- Three policies, nine scenarios, the full metrics table
 - Nine executable invariants, a randomised fuzzer, and the version-check demonstration
 - A labelled eval for the classifier (§4), which changed the design rather than confirming it
 - Live mode: real Haiku triage and real Opus workers against a portfolio fixture

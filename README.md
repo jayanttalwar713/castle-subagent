@@ -88,7 +88,7 @@ Two further columns are correctness checks that must read zero — `stale` and
 ## Correctness
 
 ```console
-$ python -m pytest                 # 185 tests, 90% coverage
+$ python -m pytest                 # 188 tests, 90% coverage
 $ HYPOTHESIS_PROFILE=soak pytest tests/test_fuzz.py   # 5,000 random chats
 ```
 
@@ -260,7 +260,7 @@ files are the system; everything else serves them.
 | # | File | Why it matters |
 |---|---|---|
 | 1 | [`model.py`](chatsched/model.py) | The vocabulary. A `Request`, the five relationships, the events in and the commands out. Nothing happens here, but nothing makes sense without it. |
-| 2 | [`sequencer.py`](chatsched/sequencer.py) | **The whole system.** `handle(event) → [commands]` — 593 lines, of which ~380 are code and the rest explain *why*. No imports that touch I/O. If you only read one file, read this one — every design claim in DESIGN.md is implemented here. |
+| 2 | [`sequencer.py`](chatsched/sequencer.py) | **The whole system.** `handle(event) → [commands]` — 608 lines, of which ~387 are code and the rest explain *why*. No imports that touch I/O. If you only read one file, read this one — every design claim in DESIGN.md is implemented here. |
 | 3 | [`policies.py`](chatsched/policies.py) | Three tiny classes. Shows how §3 turned ordering from structure into a swappable choice. |
 | 4 | [`invariants.py`](chatsched/invariants.py) | The nine properties, as code. The best summary of what "correct" means here. |
 | 5 | [`tests/test_fuzz.py`](tests/test_fuzz.py) | How the randomised testing works, and a docstring listing every bug it found. |
