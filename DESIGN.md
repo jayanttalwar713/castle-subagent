@@ -294,6 +294,38 @@ that specific bias, and that topical similarity is not evidence of
 relatedness, cut destroyed questions from 9 to 6 and `DUPLICATE`→`AMEND`
 errors from 4 to 1.
 
+**A signal that does work, measured but not built.** Showing that confidence
+fails raises an obvious question: is there *any* runtime signal that
+separates right answers from wrong ones? There is, and it is not the model's
+opinion of itself — it is whether the model agrees with itself.
+
+Classifying each message five times and comparing the five answers:
+
+| | correct |
+|---|---|
+| all five samples agree | **97%** (stable across repeated experiments) |
+| the samples disagree | 33–60% |
+
+Compare that with confidence, where right and wrong sit 0.09 apart in bands
+that almost entirely overlap. Disagreement is the uncertainty signal that
+self-reported confidence failed to be, and it is computable at runtime — the
+`hard` label in the eval set is not.
+
+Two details make this more than a curiosity. **Taking the majority vote does
+not help** — measured at 3 errors versus 3.4 for a single sample, and worse
+on a second run. The mistakes are systematic rather than random, so five
+samples reproduce the same bias five times. It is the *disagreement*, not the
+vote, that carries information. And the messages it flags are exactly the ones
+a person would hesitate over — "wait", "no", "is that still running?" — plus
+Dev's question about his own portfolio, the case §11 exists to protect.
+
+It is not built. It costs five triage calls per message, which is affordable
+(§4's triage is about 4% of one worker's cost) but not free, and the sample is
+small enough — five or six disagreements per run — that the 33–60% figure is
+noisy even though the 97% is not. Tuning a mechanism on that would be
+overfitting to thirty-eight messages I labelled myself. The finding is more
+useful than the half-tuned mechanism would be.
+
 The thresholds stay, because they cost little and catch the genuinely
 low-confidence tail. They are no longer load-bearing, and the doc no longer
 pretends they are.
