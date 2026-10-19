@@ -1,0 +1,19 @@
+{
+  "title": "Burst of six simultaneous questions — parallelism and pool saturation",
+  "messages": [
+    {"at": 0.0, "author": "Ana",  "text": "What's my exposure to a Taiwan escalation?", "rel": "NEW", "label": "q1"},
+    {"at": 0.2, "author": "Ben",  "text": "Is NVDA still my biggest position?",        "rel": "NEW", "label": "q2"},
+    {"at": 0.4, "author": "Cara", "text": "How concentrated am I in semis?",           "rel": "NEW", "label": "q3"},
+    {"at": 0.6, "author": "Ana",  "text": "What happens to me if rates stay high?",    "rel": "NEW", "label": "q4"},
+    {"at": 0.8, "author": "Dev",  "text": "Am I overweight energy versus the S&P?",    "rel": "NEW", "label": "q5"},
+    {"at": 1.0, "author": "Ben",  "text": "What's my dollar exposure to the yen?",     "rel": "NEW", "label": "q6"}
+  ],
+  "work": {
+    "q1": {"plan": 0.5, "tool": 6.0, "draft": 1.2},
+    "q2": {"plan": 0.3, "tool": 0.9, "draft": 0.4},
+    "q3": {"plan": 0.4, "tool": 2.5, "draft": 0.8},
+    "q4": {"plan": 0.4, "tool": 4.0, "draft": 1.0},
+    "q5": {"plan": 0.3, "tool": 1.5, "draft": 0.6},
+    "q6": {"plan": 0.3, "tool": 1.0, "draft": 0.5}
+  }
+}

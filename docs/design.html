@@ -1,0 +1,1785 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Answering a busy group chat without a backlog</title>
+
+<style>
+  :root {
+    --ground: #f6f7f8;
+    --surface: #ffffff;
+    --ink: #15181c;
+    --ink-2: #444c55;
+    --ink-3: #6f7881;
+    --rule: #dfe3e7;
+    --rule-strong: #c1c9d0;
+    --accent: #0b6e5f;
+    --accent-soft: #e4f0ed;
+    --warn: #7e5c10;
+    --warn-soft: #f6efdc;
+    --crit: #9d3524;
+    --crit-soft: #f8e8e4;
+
+    --mono: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    --serif: Charter, "Bitstream Charter", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+
+    --measure: 68ch;
+    --s1: 0.4rem;
+    --s2: 0.8rem;
+    --s3: 1.4rem;
+    --s4: 2.2rem;
+    --s5: 3.6rem;
+    --s6: 5.5rem;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground: #101317;
+      --surface: #171b21;
+      --ink: #e4e8eb;
+      --ink-2: #aab3bb;
+      --ink-3: #828c95;
+      --rule: #272d34;
+      --rule-strong: #3a424b;
+      --accent: #57baa7;
+      --accent-soft: #123029;
+      --warn: #d4ab51;
+      --warn-soft: #2a2415;
+      --crit: #e18d79;
+      --crit-soft: #31201b;
+    }
+  }
+
+  :root[data-theme="dark"] {
+    --ground: #101317;
+    --surface: #171b21;
+    --ink: #e4e8eb;
+    --ink-2: #aab3bb;
+    --ink-3: #828c95;
+    --rule: #272d34;
+    --rule-strong: #3a424b;
+    --accent: #57baa7;
+    --accent-soft: #123029;
+    --warn: #d4ab51;
+    --warn-soft: #2a2415;
+    --crit: #e18d79;
+    --crit-soft: #31201b;
+  }
+
+  :root[data-theme="light"] {
+    --ground: #f6f7f8;
+    --surface: #ffffff;
+    --ink: #15181c;
+    --ink-2: #444c55;
+    --ink-3: #6f7881;
+    --rule: #dfe3e7;
+    --rule-strong: #c1c9d0;
+    --accent: #0b6e5f;
+    --accent-soft: #e4f0ed;
+    --warn: #7e5c10;
+    --warn-soft: #f6efdc;
+    --crit: #9d3524;
+    --crit-soft: #f8e8e4;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--ground);
+    color: var(--ink);
+    font-family: var(--serif);
+    font-size: 17px;
+    line-height: 1.68;
+    -webkit-font-smoothing: antialiased;
+    margin: 0;
+    padding: 0 var(--s3) var(--s6);
+  }
+
+  .page {
+    max-width: 1180px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 0 var(--s5);
+  }
+
+  @media (min-width: 1100px) {
+    .page { grid-template-columns: 190px minmax(0, 1fr); }
+  }
+
+  /* ---------- rail ---------- */
+
+  .rail { display: none; }
+
+  @media (min-width: 1100px) {
+    .rail {
+      display: block;
+      grid-column: 1;
+      position: sticky;
+      top: var(--s4);
+      align-self: start;
+      max-height: calc(100vh - var(--s5));
+      overflow-y: auto;
+      padding-top: var(--s6);
+      font-family: var(--mono);
+      font-size: 0.68rem;
+      line-height: 1.5;
+    }
+  }
+
+  .rail ol {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.55rem;
+  }
+
+  .rail a {
+    color: var(--ink-3);
+    text-decoration: none;
+    display: grid;
+    grid-template-columns: 1.9rem 1fr;
+    gap: 0.3rem;
+    border-left: 2px solid transparent;
+    padding-left: 0.6rem;
+    margin-left: -0.6rem;
+  }
+
+  .rail a:hover,
+  .rail a:focus-visible {
+    color: var(--accent);
+    border-left-color: var(--accent);
+  }
+
+  .rail .n { color: var(--rule-strong); }
+
+  /* ---------- flow ---------- */
+
+  .doc {
+    grid-column: 1;
+    min-width: 0;
+    max-width: var(--measure);
+  }
+
+  @media (min-width: 1100px) {
+    .doc { grid-column: 2; }
+  }
+
+  .doc > * { margin: 0; }
+  .doc > * + * { margin-top: var(--s3); }
+
+  /* ---------- masthead ---------- */
+
+  .masthead {
+    padding: var(--s6) 0 var(--s4);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  .eyebrow {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin: 0 0 var(--s3);
+  }
+
+  .masthead h1 {
+    font-family: var(--mono);
+    font-size: clamp(1.6rem, 4vw, 2.3rem);
+    font-weight: 600;
+    letter-spacing: -0.025em;
+    line-height: 1.18;
+    text-wrap: balance;
+    margin: 0;
+    max-width: 20ch;
+  }
+
+  .standfirst {
+    color: var(--ink-2);
+    margin-top: var(--s3);
+    max-width: 60ch;
+  }
+
+  .byline {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--ink-3);
+    margin-top: var(--s3);
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem 0.9rem;
+  }
+
+  /* ---------- sections ---------- */
+
+  section {
+    padding-top: var(--s5);
+    scroll-margin-top: var(--s3);
+  }
+
+  h2 {
+    font-family: var(--mono);
+    font-size: 1.32rem;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.3;
+    text-wrap: balance;
+    margin: 0 0 var(--s3);
+    position: relative;
+  }
+
+  h2 .num {
+    font-size: 0.72rem;
+    font-weight: 500;
+    letter-spacing: 0.08em;
+    color: var(--accent);
+    display: block;
+    margin-bottom: 0.5rem;
+  }
+
+  @media (min-width: 1100px) {
+    h2 .num {
+      position: absolute;
+      left: -3.4rem;
+      top: 0.42rem;
+      margin: 0;
+    }
+  }
+
+  h3 {
+    font-family: var(--mono);
+    font-size: 0.86rem;
+    font-weight: 600;
+    letter-spacing: 0.01em;
+    margin: var(--s4) 0 var(--s2);
+    color: var(--ink);
+  }
+
+  p { margin: 0; }
+  p + p,
+  ul + p,
+  ul + .thesis,
+  ul + .note { margin-top: var(--s3); }
+
+  a { color: var(--accent); }
+
+  strong { font-weight: 700; }
+
+  code {
+    font-family: var(--mono);
+    font-size: 0.82em;
+    background: var(--accent-soft);
+    color: var(--ink);
+    padding: 0.1em 0.34em;
+    border-radius: 2px;
+  }
+
+  ul { margin: var(--s2) 0 0; padding-left: 1.15rem; }
+  li + li { margin-top: var(--s2); }
+  li::marker { color: var(--rule-strong); }
+
+  /* ---------- thesis ---------- */
+
+  .thesis {
+    margin-top: var(--s4);
+    padding: var(--s3) var(--s3) var(--s3) var(--s3);
+    background: var(--accent-soft);
+    border-left: 3px solid var(--accent);
+    font-family: var(--mono);
+    font-size: 1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    line-height: 1.5;
+    color: var(--ink);
+  }
+
+  .thesis .label {
+    display: block;
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin-bottom: 0.6rem;
+  }
+
+  /* ---------- callout ---------- */
+
+  .note {
+    margin-top: var(--s3);
+    padding: var(--s3);
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    font-size: 0.93rem;
+    color: var(--ink-2);
+  }
+
+  .note .term {
+    font-family: var(--mono);
+    font-weight: 600;
+    color: var(--ink);
+  }
+
+  /* ---------- breakout ---------- */
+
+  .wide {
+    margin-top: var(--s4);
+    margin-bottom: var(--s4);
+  }
+
+  @media (min-width: 1100px) {
+    .wide { width: min(104ch, calc(100vw - 300px)); }
+  }
+
+  .caption {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    line-height: 1.5;
+    color: var(--ink-3);
+    margin-top: var(--s2);
+    max-width: 62ch;
+  }
+
+  .caption b { color: var(--ink-2); font-weight: 600; }
+
+  /* ---------- transcript diagram ---------- */
+
+  .transcript {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .tr-row {
+    display: grid;
+    grid-template-columns: 3.2rem 4.2rem minmax(0, 1fr) auto;
+    gap: 0 var(--s2);
+    align-items: baseline;
+    padding: 0.6rem var(--s3);
+    font-size: 0.88rem;
+  }
+
+  .tr-row + .tr-row { border-top: 1px solid var(--rule); }
+
+  .tr-t {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--ink-3);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .tr-who {
+    font-family: var(--mono);
+    font-size: 0.74rem;
+    font-weight: 600;
+    color: var(--ink-2);
+  }
+
+  .tr-msg { color: var(--ink); }
+
+  .tag {
+    font-family: var(--mono);
+    font-size: 0.63rem;
+    letter-spacing: 0.07em;
+    text-transform: uppercase;
+    padding: 0.18rem 0.45rem;
+    border-radius: 2px;
+    white-space: nowrap;
+    background: var(--accent-soft);
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  .tag.warn { background: var(--warn-soft); color: var(--warn); }
+  .tag.crit { background: var(--crit-soft); color: var(--crit); }
+
+  @media (max-width: 620px) {
+    .tr-row { grid-template-columns: 3.2rem minmax(0, 1fr); }
+    .tr-msg { grid-column: 2; }
+    .tag { grid-column: 2; justify-self: start; margin-top: 0.3rem; }
+  }
+
+  /* ---------- tension diagram ---------- */
+
+  .tension {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: var(--s3);
+  }
+
+  .tension svg { width: 100%; height: auto; display: block; max-width: 560px; margin: 0 auto; }
+  .tension .node-box { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.5; }
+  .tension .node-text { fill: var(--accent); font-family: var(--mono); font-size: 12px; font-weight: 600; letter-spacing: 0.06em; }
+  .tension .edge { stroke: var(--rule-strong); stroke-width: 1.5; }
+  .tension .edge-text { fill: var(--ink-3); font-family: var(--mono); font-size: 9.5px; letter-spacing: 0.02em; }
+
+  /* ---------- architecture diagram ---------- */
+
+  .arch {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .arch-box {
+    background: var(--surface);
+    border: 1px solid var(--rule-strong);
+    border-radius: 3px;
+    padding: var(--s3);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.5rem;
+  }
+
+  .arch-box.core {
+    border-color: var(--accent);
+    border-width: 2px;
+    background: var(--accent-soft);
+  }
+
+  .arch-name {
+    font-family: var(--mono);
+    font-size: 0.78rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+
+  .arch-box.core .arch-name { color: var(--accent); }
+
+  .arch-model {
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--ink-3);
+  }
+
+  .arch-body { font-size: 0.9rem; color: var(--ink-2); }
+
+  .arch-body ul { margin: 0.35rem 0 0; padding-left: 1rem; }
+  .arch-body li + li { margin-top: 0.25rem; }
+
+  .arch-arrow {
+    font-family: var(--mono);
+    font-size: 0.66rem;
+    letter-spacing: 0.05em;
+    color: var(--ink-3);
+    text-align: center;
+    padding: 0.5rem 0;
+    position: relative;
+  }
+
+  .arch-arrow::before {
+    content: "";
+    display: block;
+    width: 1px;
+    height: 0.8rem;
+    background: var(--rule-strong);
+    margin: 0 auto 0.3rem;
+  }
+
+  .arch-arrow::after {
+    content: "▼";
+    display: block;
+    font-size: 0.55rem;
+    color: var(--rule-strong);
+    margin-top: 0.2rem;
+  }
+
+  .arch-split {
+    display: grid;
+    gap: var(--s2);
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 720px) {
+    .arch-split { grid-template-columns: 1fr 1fr; }
+  }
+
+  /* ---------- lifecycle track ---------- */
+
+  .track {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: var(--s3);
+    overflow-x: auto;
+  }
+
+  .track-row {
+    display: flex;
+    align-items: stretch;
+    gap: 0;
+    min-width: 560px;
+  }
+
+  .stage {
+    flex: 1;
+    text-align: center;
+    padding: 0.7rem 0.4rem;
+    border: 1px solid var(--rule-strong);
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    color: var(--ink-2);
+    background: var(--ground);
+  }
+
+  .stage.done { background: var(--accent-soft); color: var(--accent); border-color: var(--accent); }
+  .stage + .stage { border-left: none; }
+
+  .track-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--s2) var(--s3);
+    margin-top: var(--s3);
+    font-family: var(--mono);
+    font-size: 0.7rem;
+    color: var(--ink-2);
+    min-width: 560px;
+  }
+
+  .track-legend div { display: flex; gap: 0.5rem; align-items: baseline; }
+  .track-legend .k { color: var(--accent); font-weight: 600; }
+  .track-legend .k.crit { color: var(--crit); }
+
+  /* ---------- tables ---------- */
+
+  .table-wrap {
+    overflow-x: auto;
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    background: var(--surface);
+  }
+
+  table {
+    border-collapse: collapse;
+    width: 100%;
+    font-size: 0.87rem;
+    min-width: 520px;
+  }
+
+  table.matrix { min-width: 860px; }
+
+  th, td {
+    text-align: left;
+    vertical-align: top;
+    padding: 0.62rem var(--s2);
+    border-bottom: 1px solid var(--rule);
+  }
+
+  thead th {
+    font-family: var(--mono);
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    background: var(--ground);
+    border-bottom: 1px solid var(--rule-strong);
+    white-space: nowrap;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  tbody th {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--ink);
+    white-space: nowrap;
+  }
+
+  td { color: var(--ink-2); }
+  td strong { color: var(--ink); }
+
+  /* ---------- metric emphasis ---------- */
+
+  .zero {
+    font-family: var(--mono);
+    font-weight: 700;
+    color: var(--accent);
+  }
+
+  /* ---------- scope lists ---------- */
+
+  .scope {
+    display: grid;
+    gap: var(--s3);
+    grid-template-columns: 1fr;
+    margin-top: var(--s3);
+  }
+
+  .scope-card {
+    background: var(--surface);
+    border: 1px solid var(--rule);
+    border-radius: 3px;
+    padding: var(--s3);
+  }
+
+  .scope-card h3 { margin-top: 0; }
+
+  .scope-card ul { padding-left: 1.05rem; font-size: 0.92rem; color: var(--ink-2); }
+  .scope-card li + li { margin-top: 0.4rem; }
+
+  .scope-card.built { border-left: 3px solid var(--accent); }
+  .scope-card.built h3 { color: var(--accent); }
+  .scope-card.deferred { border-left: 3px solid var(--warn); }
+  .scope-card.deferred h3 { color: var(--warn); }
+
+  /* ---------- footer ---------- */
+
+  .colophon {
+    margin-top: var(--s6);
+    padding-top: var(--s3);
+    border-top: 1px solid var(--rule);
+    font-family: var(--mono);
+    font-size: 0.68rem;
+    color: var(--ink-3);
+    line-height: 1.6;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 3px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    * { animation: none !important; transition: none !important; }
+  }
+
+  @page { size: A4; margin: 18mm 15mm 16mm; }
+
+  /* ---------- print ---------- */
+
+  @media print {
+    :root {
+      --ground: #ffffff;
+      --surface: #ffffff;
+      --ink: #000000;
+      --ink-2: #26292d;
+      --ink-3: #55595e;
+      --rule: #c8ccd0;
+      --rule-strong: #8d9398;
+      --accent: #0a5a4d;
+      --accent-soft: #eef5f3;
+    }
+    body { font-size: 10.5pt; padding: 0; }
+    .rail { display: none; }
+    .page { display: block; max-width: none; }
+    .doc { max-width: none; }
+    .wide { width: auto; margin-top: 1.1rem; margin-bottom: 1.1rem; }
+    .masthead { padding: 0 0 1.2rem; }
+    /* Sections flow across pages; only atomic blocks are kept whole. */
+    section { padding-top: 1.5rem; }
+    h2, h3 { break-after: avoid; break-inside: avoid; }
+    h2 .num { position: static; margin-bottom: 0.3rem; }
+    p, li { orphans: 2; widows: 2; }
+    .transcript, .tension, .arch-box, .arch-arrow,
+    .track, .scope-card, .thesis, .note, .caption { break-inside: avoid; }
+    /* Tall tables may span pages — keep rows whole and repeat the header
+       rather than shunting the whole table and stranding its heading. */
+    .table-wrap { break-inside: auto; }
+    thead { display: table-header-group; }
+    tr { break-inside: avoid; }
+    .caption { break-before: avoid; }
+    .colophon { break-inside: avoid; }
+    table { min-width: 0; }
+    table.matrix { min-width: 0; font-size: 8pt; }
+  }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <nav class="rail" aria-label="Sections">
+    <ol>
+      <li><a href="#start"><span class="n">—</span><span>Before you start</span></a></li>
+      <li><a href="#s1"><span class="n">01</span><span>The problem</span></a></li>
+      <li><a href="#s2"><span class="n">02</span><span>Why it's hard</span></a></li>
+      <li><a href="#s3"><span class="n">03</span><span>Reframe: ordering</span></a></li>
+      <li><a href="#s4"><span class="n">04</span><span>Reframe: messages</span></a></li>
+      <li><a href="#s5"><span class="n">05</span><span>Architecture</span></a></li>
+      <li><a href="#s6"><span class="n">06</span><span>Request lifecycle</span></a></li>
+      <li><a href="#s7"><span class="n">07</span><span>Changes mid-flight</span></a></li>
+      <li><a href="#s8"><span class="n">08</span><span>Edge cases</span></a></li>
+      <li><a href="#s9"><span class="n">09</span><span>What we measure</span></a></li>
+      <li><a href="#s10"><span class="n">10</span><span>How we know it's right</span></a></li>
+      <li><a href="#s11"><span class="n">11</span><span>Assumptions</span></a></li>
+      <li><a href="#s12"><span class="n">12</span><span>Scope</span></a></li>
+      <li><a href="#s13"><span class="n">13</span><span>Failure modes</span></a></li>
+      <li><a href="#glossary"><span class="n">—</span><span>Glossary</span></a></li>
+    </ol>
+  </nav>
+
+  <main class="doc">
+
+    <header class="masthead">
+      <p class="eyebrow">Castle take-home &middot; Option 3 &middot; Subagent architecture</p>
+      <h1>Answering a busy group chat without a backlog</h1>
+      <p class="standfirst">
+        A design for an agent that works on many chat requests at once, still gives
+        every reader a legible stream of answers, and survives people changing their
+        minds while it is already working.
+      </p>
+      <p class="byline">
+        <span>Jay Talwar</span>
+        <span>Written before the code</span>
+        <span>18 October 2026</span>
+      </p>
+    </header>
+
+    <!-- ===================== before ===================== -->
+    <section id="start">
+      <h2><span class="num">&mdash;</span>Before you start</h2>
+
+      <p>
+        <strong>This document assumes no background.</strong> Every technical term is
+        defined where it first appears, and there is a glossary at the end. If you hit
+        a word you don&rsquo;t recognise, it is defined somewhere above &mdash; or it
+        shouldn&rsquo;t be there.
+      </p>
+
+      <p>Here is the whole world the design lives in:</p>
+
+      <ul>
+        <li>
+          An <strong>agent</strong> is a program that answers questions using a
+          language model. To answer &ldquo;am I overweight energy?&rdquo; it has to
+          <em>look things up</em> &mdash; fetch your holdings, fetch prices. Those
+          lookups are called <strong>tool calls</strong>, and they are the slow,
+          expensive part. A single question might take twenty seconds and cost a few
+          cents.
+        </li>
+        <li>
+          Cost is measured in <strong>tokens</strong> &mdash; roughly, pieces of words.
+          Everything the agent reads and writes is billed by the token. When this
+          document says work was &ldquo;wasted&rdquo;, it means tokens we paid for and
+          threw away.
+        </li>
+        <li>
+          The agent sits in a <strong>group chat</strong> with several people in it.
+          They talk at the same time, interrupt, change their minds, and ask
+          follow-ups.
+        </li>
+      </ul>
+
+      <p>That is it. Everything else is built up from here.</p>
+    </section>
+
+    <!-- ===================== 1 ===================== -->
+    <section id="s1">
+      <h2><span class="num">&sect; 01</span>The problem, concretely</h2>
+
+      <p>
+        Castle&rsquo;s agent sits in a group chat. When the chat gets busy, several
+        people ask it several things at once. Today it answers them one at a time, so a
+        queue forms. The brief asks for a system that works on many requests
+        <strong>in parallel</strong> &mdash; several at the same time, rather than
+        finishing one before starting the next &mdash; still gives each chat a
+        <strong>clear, ordered stream of answers</strong>, and handles people
+        <strong>changing or adding to a request while it is running</strong>.
+      </p>
+
+      <p>
+        Here is the situation the system has to survive. Times are seconds from the
+        start of the burst.
+      </p>
+
+      <div class="wide">
+        <div class="transcript">
+          <div class="tr-row">
+            <span class="tr-t">t=0</span>
+            <span class="tr-who">Ana</span>
+            <span class="tr-msg">What&rsquo;s my exposure to a Taiwan escalation?</span>
+            <span class="tag">New &middot; slow</span>
+          </div>
+          <div class="tr-row">
+            <span class="tr-t">t=2</span>
+            <span class="tr-who">Ben</span>
+            <span class="tr-msg">Is NVDA still my biggest position?</span>
+            <span class="tag">New &middot; fast</span>
+          </div>
+          <div class="tr-row">
+            <span class="tr-t">t=4</span>
+            <span class="tr-who">Ana</span>
+            <span class="tr-msg">Actually make that Taiwan <em>or</em> South China Sea.</span>
+            <span class="tag warn">Changes a running request</span>
+          </div>
+          <div class="tr-row">
+            <span class="tr-t">t=5</span>
+            <span class="tr-who">Cara</span>
+            <span class="tr-msg">What&rsquo;s my exposure to Taiwan?</span>
+            <span class="tag">Same question Ana asked</span>
+          </div>
+          <div class="tr-row">
+            <span class="tr-t">t=9</span>
+            <span class="tr-who">Ben</span>
+            <span class="tr-msg">And the second biggest?</span>
+            <span class="tag">Needs an earlier answer</span>
+          </div>
+          <div class="tr-row">
+            <span class="tr-t">t=11</span>
+            <span class="tr-who">Cara</span>
+            <span class="tr-msg">never mind the Taiwan one</span>
+            <span class="tag crit">Cancels</span>
+          </div>
+        </div>
+        <p class="caption">
+          <b>Six messages, three pieces of work.</b> Two of the three change shape after
+          they have already started. This transcript is the specification &mdash; and
+          scenario&nbsp;1 of the test suite.
+        </p>
+      </div>
+
+      <div class="note">
+        Throughout this document, a <span class="term">request</span> means one piece of
+        work the agent owes somebody an answer for. A <span class="term">message</span>
+        is one line somebody typed. The two are not the same thing, and §&nbsp;04 argues
+        that confusing them is the central mistake available here.
+      </div>
+
+      <p>
+        A system that treats each message as an independent job gets this transcript
+        wrong in at least four ways. It answers the Taiwan question twice &mdash; Ana
+        and Cara asked the same thing. It answers Ana&rsquo;s original question, which
+        she already replaced. It answers &ldquo;the second biggest?&rdquo; before anyone
+        knows what the first one was. And it keeps paying for work Cara cancelled.
+      </p>
+    </section>
+
+    <!-- ===================== 2 ===================== -->
+    <section id="s2">
+      <h2><span class="num">&sect; 02</span>Why the three requirements fight each other</h2>
+
+      <p>
+        The three requirements are not independently satisfiable. Every <em>pair</em> of
+        them is in tension, which is why this is a design problem rather than a to-do
+        list.
+      </p>
+
+      <div class="wide">
+        <div class="tension">
+          <svg viewBox="0 0 560 300" role="img" aria-label="Triangle showing the three requirements — parallel, ordered, mutable — with the conflict on each connecting edge">
+            <line class="edge" x1="130" y1="78" x2="430" y2="78" />
+            <line class="edge" x1="130" y1="78" x2="280" y2="238" />
+            <line class="edge" x1="430" y1="78" x2="280" y2="238" />
+
+            <rect class="node-box" x="58" y="40" width="144" height="38" rx="3" />
+            <text class="node-text" x="130" y="64" text-anchor="middle">PARALLEL</text>
+
+            <rect class="node-box" x="358" y="40" width="144" height="38" rx="3" />
+            <text class="node-text" x="430" y="64" text-anchor="middle">ORDERED</text>
+
+            <rect class="node-box" x="208" y="238" width="144" height="38" rx="3" />
+            <text class="node-text" x="280" y="262" text-anchor="middle">MUTABLE</text>
+
+            <text class="edge-text" x="280" y="100" text-anchor="middle">holding answers back to restore</text>
+            <text class="edge-text" x="280" y="113" text-anchor="middle">order just moves the backlog</text>
+
+            <text class="edge-text" x="118" y="168" text-anchor="middle">isolated workers leave a</text>
+            <text class="edge-text" x="118" y="181" text-anchor="middle">change nowhere to go</text>
+
+            <text class="edge-text" x="444" y="168" text-anchor="middle">a changing request has</text>
+            <text class="edge-text" x="444" y="181" text-anchor="middle">no stable position</text>
+          </svg>
+        </div>
+        <p class="caption">
+          <b>Each edge is a real conflict, not a tradeoff dial.</b> The way through is to
+          notice that one of the three corners is not what it appears to be.
+        </p>
+      </div>
+
+      <h3>Parallel &times; Ordered</h3>
+      <p>
+        Work finishes out of order &mdash; a question that takes one second finishes
+        before one that takes thirty, whoever asked first. You could restore arrival
+        order by holding finished answers back until their predecessors are done. But
+        then a fast question asked third waits on a slow question asked first, and you
+        have moved the backlog from <em>computing</em> answers to <em>delivering</em>
+        them. The user sees no improvement.
+      </p>
+
+      <div class="note">
+        <span class="term">Head-of-line blocking</span> &mdash; when the first item in a
+        queue is slow, everything behind it waits, however fast those items are
+        individually. It is the specific failure the brief describes as
+        &ldquo;answering them one at a time creates a backlog&rdquo;. Named after a
+        queue of people at a door: one person fumbling for their ticket blocks everyone
+        behind them.
+      </div>
+
+      <h3>Parallel &times; Mutable</h3>
+      <p>
+        A change &mdash; <em>&ldquo;actually make that&hellip;&rdquo;</em> &mdash;
+        targets <strong>one specific computation that is currently running</strong>. The
+        obvious way to get parallelism is to give each request its own isolated worker
+        that shares nothing with the others. But then the change has nowhere to go:
+        whoever receives the new message has no handle on the worker that needs to hear
+        it, and no shared context in which to work out what &ldquo;that&rdquo; refers
+        to.
+      </p>
+
+      <h3>Ordered &times; Mutable</h3>
+      <p>
+        &ldquo;Ordered&rdquo; presumes a stable sequence of things to order. If request
+        #2 becomes a materially different request at t=30s &mdash; or is cancelled, or
+        turns out to be the same question as request #4 &mdash; the sequence is not
+        stable. Ordering by the arrival time of the <em>original</em> message is
+        ordering by a fact that is no longer true.
+      </p>
+    </section>
+
+    <!-- ===================== 3 ===================== -->
+    <section id="s3">
+      <h2><span class="num">&sect; 03</span>First reframe: &ldquo;ordered&rdquo; is about legibility, not sequence</h2>
+
+      <p>Nobody in a group chat actually wants strict arrival order.</p>
+
+      <div class="note">
+        <span class="term">FIFO</span> &mdash; &ldquo;first in, first out&rdquo;, the
+        rule that things come out in the order they went in. A supermarket queue is
+        FIFO. It is the obvious reading of &ldquo;ordered&rdquo;, and it is the one that
+        costs head-of-line blocking.
+      </div>
+
+      <p>
+        Pull on &ldquo;a clear, ordered stream of answers&rdquo; and ask what a reader
+        actually needs, and it comes apart into four separate properties.
+      </p>
+
+      <div class="wide">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">Property</th><th scope="col">What it means for the reader</th><th scope="col">Needs ordering?</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Attribution</th>
+                <td>For every answer, I can tell which question it answers.</td>
+                <td>No</td>
+              </tr>
+              <tr>
+                <th scope="row">Completeness</th>
+                <td>I can tell what is still outstanding. Nothing silently vanished.</td>
+                <td>No</td>
+              </tr>
+              <tr>
+                <th scope="row">Non-contradiction</th>
+                <td>I never see two live answers that disagree. A replaced answer is visibly replaced.</td>
+                <td>No</td>
+              </tr>
+              <tr>
+                <th scope="row">Causal consistency</th>
+                <td>If answer B depends on answer A, A arrives first.</td>
+                <td><strong>Yes</strong> &mdash; and only between dependent pairs</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="caption">
+          <b>Three of the four need no ordering at all.</b> FIFO delivery buys all four
+          with one blunt instrument and charges head-of-line blocking for it.
+        </p>
+      </div>
+
+      <p>Implemented directly, each property is cheap, and none of them blocks:</p>
+
+      <ul>
+        <li><strong>Attribution</strong> &rarr; quote the question back: <code>re: "exposure to Taiwan" &mdash; &hellip;</code></li>
+        <li><strong>Completeness</strong> &rarr; acknowledge each request when it arrives, and keep the outstanding set visible</li>
+        <li><strong>Non-contradiction</strong> &rarr; say &ldquo;this replaces my earlier answer&rdquo; when it does, and never ship an answer belonging to an out-of-date version of a request (§&nbsp;07)</li>
+        <li><strong>Causal consistency</strong> &rarr; record which request depends on which, and serialize <em>only</em> across that link</li>
+      </ul>
+
+      <div class="thesis">
+        <span class="label">The design thesis</span>
+        Serialize on dependency, not on arrival.
+      </div>
+
+      <p style="margin-top: var(--s3);">
+        <em>Serialize</em> here means &ldquo;force to happen one after another&rdquo;.
+        The claim is that the only thing that genuinely has to wait is an answer that
+        needs another answer first &mdash; and nothing else.
+      </p>
+
+      <p>
+        Everything downstream follows from that sentence. It turns ordering from a
+        structural property of the system into a <strong>policy</strong> that can be
+        swapped per chat &mdash; which in turn makes it something we can
+        <em>measure</em> rather than assert (§&nbsp;09, §&nbsp;10).
+      </p>
+    </section>
+
+    <!-- ===================== 4 ===================== -->
+    <section id="s4">
+      <h2><span class="num">&sect; 04</span>Second reframe: messages are not requests</h2>
+
+      <p>
+        The brief&rsquo;s phrasing &mdash; &ldquo;several questions at once&rdquo;
+        &mdash; invites you to treat each message as a job. In a real group chat that is
+        wrong. Look at the transcript again: six messages, three requests.
+      </p>
+
+      <p>
+        So the right question on the way in is not <em>&ldquo;what does this message ask
+        for?&rdquo;</em> but <strong>&ldquo;how does this message relate to the work
+        already in flight?&rdquo;</strong> That distinction is load-bearing. It is what
+        lets &ldquo;And the second biggest?&rdquo; create the dependency link §&nbsp;03
+        needs, and what lets Cara&rsquo;s repeat of Ana&rsquo;s question avoid paying
+        twice for one answer.
+      </p>
+
+      <h3>The five relationships we handle</h3>
+
+      <div class="wide">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">Relationship</th><th scope="col">Meaning</th><th scope="col">In the transcript</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">NEW</th><td>An independent request.</td><td>Ana t=0, Ben t=2</td></tr>
+              <tr><th scope="row">AMEND</th><td>Changes an existing request. Carries one flag, <code>preserves_premise</code>.</td><td>Ana t=4</td></tr>
+              <tr><th scope="row">CANCEL</th><td>Stop work; no answer is owed.</td><td>Cara t=11</td></tr>
+              <tr><th scope="row">DUPLICATE</th><td>Someone already asked this; one answer serves both.</td><td>Cara t=5</td></tr>
+              <tr><th scope="row">REFERENCE</th><td>A new request that needs a previous request&rsquo;s <em>answer</em> first.</td><td>Ben t=9</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p>
+        The <code>preserves_premise</code> flag is doing real work. &ldquo;Also include
+        South China Sea&rdquo; <em>widens</em> the question &mdash; the research already
+        done on Taiwan is still valid, so we keep it. &ldquo;Actually, not Taiwan, I
+        meant inflation&rdquo; <em>replaces</em> the premise &mdash; that research is now
+        worthless and must be thrown away. Same relationship, one boolean, very
+        different cost. Folding <em>widen</em>, <em>narrow</em> and <em>replace</em> into
+        one class with one flag removes three categories the classifier would otherwise
+        have to tell apart, and loses no behaviour.
+      </p>
+
+      <h3>Classifier errors must be asymmetric by design</h3>
+
+      <div class="note">
+        <span class="term">Classifier</span> &mdash; a model whose job is to put a thing
+        into one of a fixed set of categories. Here: given a message and the live
+        request set, pick one of the five relationships above.
+        <span class="term">Confidence</span> is the classifier&rsquo;s own estimate of
+        how likely it is to be right, from 0 to 1.
+      </div>
+
+      <p>
+        The classifier is a small language model and it will sometimes be wrong. What
+        matters is making sure it is wrong in the <strong>recoverable</strong>
+        direction.
+      </p>
+
+      <ul>
+        <li>A <code>NEW</code> misclassified as <code>AMEND</code> <strong>destroys a request.</strong> The original question is overwritten, never answered, and nobody finds out.</li>
+        <li>An <code>AMEND</code> misclassified as <code>NEW</code> <strong>produces a redundant answer.</strong> Noisy, but every question still gets answered and the reader can see what happened.</li>
+      </ul>
+
+      <p>
+        The second failure is recoverable and the first is not. So the classifier is
+        <strong>biased toward <code>NEW</code></strong>: each relationship has a
+        confidence threshold it must clear, the destructive ones (<code>CANCEL</code>,
+        and <code>AMEND</code> that replaces the premise) have a higher bar than the
+        additive ones, and anything below its threshold falls back to <code>NEW</code>.
+      </p>
+
+      <p>
+        Because the classifier is the highest-risk component in the system, every
+        decision it makes &mdash; proposed relationship, confidence, target, and whether
+        a fallback was applied &mdash; is logged and printable. It is the one part a
+        reviewer should be able to audit directly.
+      </p>
+    </section>
+
+    <!-- ===================== 5 ===================== -->
+    <section id="s5">
+      <h2><span class="num">&sect; 05</span>Architecture</h2>
+
+      <p>
+        Four components. Only one of them holds state shared between requests, and it is
+        deliberately the cheap one.
+      </p>
+
+      <div class="wide">
+        <div class="arch">
+          <div class="arch-box">
+            <span class="arch-name">Chat messages</span>
+            <span class="arch-model">append-only log on disk &mdash; replayable</span>
+          </div>
+
+          <div class="arch-arrow">every inbound message</div>
+
+          <div class="arch-box">
+            <span class="arch-name">Triage</span>
+            <span class="arch-model">claude-haiku-4-5</span>
+            <div class="arch-body">
+              Classifies each message against the live request set (§&nbsp;04) and emits
+              one command. Runs on everything that arrives, so it must be cheap.
+            </div>
+          </div>
+
+          <div class="arch-arrow">NEW / AMEND / CANCEL / DUPLICATE / REFERENCE</div>
+
+          <div class="arch-box core">
+            <span class="arch-name">Sequencer &mdash; one per chat</span>
+            <span class="arch-model">the only shared state &middot; one event at a time &middot; no model calls</span>
+            <div class="arch-body">
+              <ul>
+                <li>The register of live requests</li>
+                <li>Which request depends on which</li>
+                <li><strong>Admission</strong> &mdash; what is allowed to start</li>
+                <li><strong>Delivery</strong> &mdash; what is allowed to ship</li>
+              </ul>
+              Pure bookkeeping.
+            </div>
+          </div>
+
+          <div class="arch-arrow">start (request, version) &nbsp;&rarr;&nbsp; &larr;&nbsp; results, version-checked</div>
+
+          <div class="arch-box">
+            <span class="arch-name">Worker pool &mdash; bounded</span>
+            <span class="arch-model">claude-opus-5</span>
+            <div class="arch-body">
+              One isolated worker per request-version. Each has an inbox of pending
+              changes that it reads only at safe moments.
+            </div>
+          </div>
+
+          <div class="arch-arrow">answers</div>
+
+          <div class="arch-box">
+            <span class="arch-name">Delivery</span>
+            <div class="arch-body">
+              Owns every reader-facing property from §&nbsp;03: attribution,
+              acknowledgements, replacement notices.
+            </div>
+          </div>
+        </div>
+        <p class="caption">
+          <b>The shared-state component is the cheap one.</b> Haiku runs once per inbound
+          message; the Sequencer does no model calls at all; Opus runs only inside
+          isolated, replicated workers.
+        </p>
+      </div>
+
+      <div class="note">
+        <span class="term">Worker</span> &mdash; one running job answering one request.
+        <span class="term">Pool</span> &mdash; the fixed set of workers that may run at
+        once, say three. A request waits for a free <span class="term">slot</span> before
+        it starts. Bounding the pool is what stops a busy chat from launching forty
+        expensive jobs at once.
+      </div>
+
+      <h3>Why not either sketch in the brief</h3>
+
+      <p>
+        <strong>Sketch 1 &mdash; a router plus parallel runtimes.</strong> A small model
+        reads each message and sends it to its own isolated runtime. Good isolation,
+        genuinely parallel. But the router is <em>stateless with respect to the live
+        request set</em> &mdash; it does not know what is currently running. So it
+        structurally cannot classify relationships: <code>AMEND</code>,
+        <code>DUPLICATE</code> and <code>REFERENCE</code> are unrepresentable, because
+        each of them is a statement <em>about an existing request</em>. A change arrives
+        with no addressable target. And no component owns ordering, so requirement #2
+        has nowhere to live.
+      </p>
+
+      <p>
+        <strong>Sketch 2 &mdash; one runtime with subagents.</strong> The main agent
+        answers easy things itself and spawns helpers for hard ones. Changes are natural
+        here, because everything shares context. But the main runtime becomes a
+        <strong>serialization point</strong>: every incoming change, every helper&rsquo;s
+        result, and every delivery decision passes through one loop that is <em>also
+        doing model inference</em>. Under a burst the backlog comes back &mdash; now
+        bottlenecked on the one component you cannot replicate.
+      </p>
+
+      <div class="thesis">
+        <span class="label">The architectural claim</span>
+        Serialize the cheap thing. Parallelize the expensive thing.
+      </div>
+
+      <p style="margin-top: var(--s3);">
+        The brief&rsquo;s second sketch does the exact opposite: it serializes inference
+        and parallelizes only the leaves. This is the central claim of the submission,
+        so §&nbsp;09 <strong>measures</strong> it rather than asserting it &mdash; there
+        is a metric whose whole job is to falsify it.
+      </p>
+
+      <h3>The Sequencer is a pure function</h3>
+
+      <div class="note">
+        <span class="term">Pure function</span> &mdash; code that takes input and returns
+        output, touching nothing else: no files, no network, no clock. Given the same
+        input it always returns the same thing.
+      </div>
+
+      <p>
+        The Sequencer is written as <code>handle(event) &rarr; [commands]</code>. It
+        never calls a model, never reads the time (time arrives <em>on</em> each event),
+        and never performs I/O. It returns a list of instructions &mdash; <em>start this
+        worker</em>, <em>stop that one</em>, <em>ship this answer</em> &mdash; and
+        something else carries them out.
+      </p>
+
+      <p>This is not stylistic. It buys three concrete things:</p>
+
+      <ul>
+        <li><strong>It makes the claim above structural.</strong> &ldquo;The Sequencer does no inference&rdquo; stops being a promise and becomes something the shape of the function enforces.</li>
+        <li><strong>The races in §&nbsp;08 cannot happen.</strong> One event is handled at a time, start to finish, so there is no moment where two things are half-applied.</li>
+        <li><strong>It makes the testing in §&nbsp;10 possible at all.</strong> A pure function can be driven by a fuzzer thousands of times per second with no network calls.</li>
+      </ul>
+
+      <p>
+        The same Sequencer runs unchanged in the simulator and in live mode against real
+        models. Only the thing driving it differs.
+      </p>
+    </section>
+
+    <!-- ===================== 6 ===================== -->
+    <section id="s6">
+      <h2><span class="num">&sect; 06</span>How a request moves through the system</h2>
+
+      <p>
+        Every request carries a <strong>version number</strong> that goes up by one every
+        time its specification changes. Every job started and every result returned is
+        stamped with <code>(request, version)</code>. This one mechanism does most of the
+        work in §&nbsp;07.
+      </p>
+
+      <div class="wide">
+        <div class="track">
+          <div class="track-row">
+            <div class="stage">RECEIVED</div>
+            <div class="stage">QUEUED</div>
+            <div class="stage">PLANNING</div>
+            <div class="stage">TOOL_CALL</div>
+            <div class="stage">DRAFTING</div>
+            <div class="stage done">DELIVERED</div>
+          </div>
+          <div class="track-legend">
+            <div><span class="k">on a change</span><span>version + 1, start again from QUEUED</span></div>
+            <div><span class="k crit">on CANCEL</span><span>&rarr; DROPPED, acknowledged, no answer</span></div>
+          </div>
+        </div>
+        <p class="caption">
+          <b>QUEUED</b> means waiting for a free worker slot. <b>PLANNING</b> is the model
+          working out what it needs, <b>TOOL_CALL</b> is the expensive lookup,
+          <b>DRAFTING</b> is writing the answer.
+        </p>
+      </div>
+
+      <p>
+        A queued request starts when <strong>two</strong> conditions hold: a worker slot
+        is free, <strong>and</strong> everything it depends on has already been answered.
+        The second condition is checked <em>before</em> a slot is taken, never while
+        holding one &mdash; §&nbsp;08 explains why that ordering is load-bearing.
+      </p>
+    </section>
+
+    <!-- ===================== 7 ===================== -->
+    <section id="s7">
+      <h2><span class="num">&sect; 07</span>Handling changes mid-flight</h2>
+
+      <p>Three mechanisms, and then the matrix that falls out of them.</p>
+
+      <h3>(a) Changes apply at checkpoints, not instantly</h3>
+
+      <div class="note">
+        <span class="term">Checkpoint</span> &mdash; a defined safe moment in a
+        worker&rsquo;s execution. Here: just before each model call, and just after a
+        tool call returns.
+      </div>
+
+      <p>
+        A worker has an inbox of pending changes and reads it only at checkpoints. So
+        nothing is torn apart in the middle of an API call, and the system stays
+        predictable enough to test.
+      </p>
+      <p>
+        <em>Cost:</em> a change may wait up to one tool call before it takes effect. That
+        is stated as a tradeoff, not hidden. The alternative &mdash; interrupting a
+        worker at an arbitrary instruction &mdash; buys a few seconds and costs the
+        ability to reason about, or test, what state the worker was in when you stopped
+        it.
+      </p>
+
+      <h3>(b) Version checking makes reliable cancellation unnecessary</h3>
+      <p>
+        The Sequencer ignores any result whose version is not the current one.
+      </p>
+      <p>
+        That sounds small and is the most important mechanism here. Reliably
+        <em>stopping</em> work that is already running, across a network, is a genuinely
+        hard problem &mdash; your stop signal races the work finishing, and sometimes
+        loses. <em>Ignoring</em> work that came back out of date is trivial and cannot
+        fail.
+      </p>
+      <p>
+        So we still try to stop superseded workers, to save money. But correctness never
+        depends on that succeeding. This is not hypothetical: a stop signal sent while a
+        worker is already writing its final answer <em>does</em> lose the race, the
+        worker finishes, and it reports a result for a version that no longer exists.
+        Version checking is what makes that harmless &mdash; and §&nbsp;10 shows it
+        failing on command when the check is turned off.
+      </p>
+
+      <h3>(c) Preserve work in proportion to what it cost</h3>
+      <p>
+        Tool calls are expensive in both time and tokens, and are frequently still valid
+        after a change. A draft is cheap to rewrite. So a change that
+        <strong>preserves the premise</strong> rewrites the answer over the tool results
+        it already has, and one that <strong>replaces the premise</strong> throws them
+        away and starts over.
+      </p>
+
+      <h3>The stage &times; relationship matrix</h3>
+
+      <div class="wide">
+        <div class="table-wrap">
+          <table class="matrix">
+            <thead>
+              <tr>
+                <th scope="col"></th>
+                <th scope="col">Queued</th>
+                <th scope="col">Planning</th>
+                <th scope="col">Tool call</th>
+                <th scope="col">Drafting</th>
+                <th scope="col">Delivered</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">AMEND<br><span style="font-weight:400;color:var(--ink-3)">premise kept</span></th>
+                <td>Rewrite in place; nothing lost</td>
+                <td>New version, start again</td>
+                <td>Let the tool call finish &mdash; already paid for &mdash; then apply at the next checkpoint</td>
+                <td>Rewrite the answer over the tool results we already have</td>
+                <td>Send an addendum</td>
+              </tr>
+              <tr>
+                <th scope="row">AMEND<br><span style="font-weight:400;color:var(--ink-3)">premise replaced</span></th>
+                <td>Replace in place</td>
+                <td>Start again</td>
+                <td>Start again, <strong>throwing away the tool results</strong></td>
+                <td>Start again</td>
+                <td>New answer plus a visible &ldquo;this replaces my earlier answer&rdquo;</td>
+              </tr>
+              <tr>
+                <th scope="row">CANCEL</th>
+                <td>Drop, acknowledge</td>
+                <td>Stop, acknowledge</td>
+                <td>Let the tool call settle, then drop</td>
+                <td>Stop, acknowledge</td>
+                <td>Acknowledge <em>&ldquo;already answered&rdquo;</em> &mdash; no retraction</td>
+              </tr>
+              <tr>
+                <th scope="row">DUPLICATE</th>
+                <td colspan="4">Attach the second asker; one answer, sent to both</td>
+                <td>Send the existing answer to the new asker</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="caption">
+          <b>The Delivered column is the one most designs omit.</b> A change can always
+          arrive after the answer has already shipped. &ldquo;Too late&rdquo; is a real
+          state with real required behaviour, not an error.
+        </p>
+      </div>
+    </section>
+
+    <!-- ===================== 8 ===================== -->
+    <section id="s8">
+      <h2><span class="num">&sect; 08</span>Edge cases handled on purpose</h2>
+
+      <p>
+        These are the places a plausible-looking implementation quietly breaks. Each is
+        handled explicitly and each has a test. <strong>Four of the six were found by the
+        fuzzer described in §&nbsp;10</strong>, not by being clever in advance.
+      </p>
+
+      <div class="wide">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">The trap</th><th scope="col">Resolution</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">A cancelled parent with a waiting child</th>
+                <td>Ben asks &ldquo;and the second biggest?&rdquo;, then cancels the first question. The follow-up is now waiting on an answer that will never come. When a request ends without ever answering, everything waiting on it is dropped with an explicit notice naming the question that died. <strong>Silence is the one unacceptable outcome.</strong></td>
+              </tr>
+              <tr>
+                <th scope="row">Waiting on the answer, not the request&rsquo;s status</th>
+                <td>A subtler version of the same thing. If a parent answers, is then amended (which makes it live again), and is then cancelled, its status is DROPPED &mdash; but the answer the child needs <em>already shipped</em>. Asking &ldquo;is the parent currently delivered?&rdquo; strands that child forever; asking &ldquo;has the answer it needs been delivered?&rdquo; does not. The gate is written the second way.</td>
+              </tr>
+              <tr>
+                <th scope="row">Dependency deadlock in the worker pool</th>
+                <td>If a waiting request could take a worker slot and <em>then</em> wait for its parent, a pool full of waiters would deadlock &mdash; every slot held by something that cannot proceed, and the thing it is waiting for unable to get a slot. The dependency check therefore happens at <strong>admission</strong>: a request never occupies a slot while waiting on another request.</td>
+              </tr>
+              <tr>
+                <th scope="row">The ready-but-undelivered window</th>
+                <td>Between &ldquo;the worker finished&rdquo; and &ldquo;the ordering policy released the answer&rdquo;, a request has no worker but is not finished either. A change arriving in that window used to do two bad things at once: start a replacement worker while the old slot was already free (<strong>breaking the pool limit</strong>), and leave the now-obsolete answer sitting in the delivery buffer where a later release could still ship it. A change now always discards any undelivered answer, and always goes back through admission rather than starting a worker directly.</td>
+              </tr>
+              <tr>
+                <th scope="row">Two things happening at the same instant</th>
+                <td>A result arriving and a change arriving can land at the same moment. The Sequencer handles one event at a time, to completion, so there is no interleaving to get wrong &mdash; the concrete payoff of keeping the shared-state component free of model calls (§&nbsp;05).</td>
+              </tr>
+              <tr>
+                <th scope="row">Dependency cycles from classifier error</th>
+                <td>A misclassification could make A wait for B while B waits for A &mdash; a loop nobody can ever get out of. Detected when the link is created, and broken by dropping the newer one. The result is a correct answer with weaker ordering, which is the right direction to fail.</td>
+              </tr>
+              <tr>
+                <th scope="row">Unbounded classifier input</th>
+                <td>Triage needs to see the live request set, and that set grows. It sees every unfinished request plus the last few answered ones. The live set is bounded; the chat history is not, and is not included.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="note">
+        <span class="term">Deadlock</span> &mdash; a standstill where everyone is waiting
+        for someone else and nothing can move. Classically: two people each holding one
+        chopstick, each waiting for the other&rsquo;s.
+      </div>
+    </section>
+
+    <!-- ===================== 9 ===================== -->
+    <section id="s9">
+      <h2><span class="num">&sect; 09</span>What we measure, and why</h2>
+
+      <p>
+        Everything below is recorded per scenario, per policy, and printed as a
+        comparison table.
+      </p>
+
+      <div class="wide">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">Metric</th><th scope="col">What it tells you</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Time to first / last answer</th><td>How long the burst feels. The user-perceived win.</td></tr>
+              <tr><th scope="row">Head-of-line delay</th><td>Total time that <em>finished</em> answers spent waiting on unfinished ones. Isolates the cost of ordering from the cost of the work.</td></tr>
+              <tr><th scope="row">Wasted tokens</th><td>Money spent on versions of requests that were never delivered. <strong>The price of mutability, in dollars.</strong></td></tr>
+              <tr><th scope="row">Staleness</th><td>Answers shipped whose question had already changed. Must be <span class="zero">0</span> &mdash; a correctness check, not a performance number.</td></tr>
+              <tr><th scope="row">Misattribution exposure</th><td>Answers shipped with no &ldquo;re: …&rdquo; while more than one question was outstanding &mdash; the reader had to count positions to know what was being answered.</td></tr>
+              <tr><th scope="row">Sequencer p99</th><td>How long the Sequencer spends per event. <strong>Directly tests &ldquo;serialize the cheap thing.&rdquo;</strong> If this is not tiny, the central claim of §&nbsp;05 is false.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="note">
+        <span class="term">p99</span> &mdash; the 99th percentile: the value that 99 out
+        of 100 measurements come in under. Used instead of an average because averages
+        hide the occasional very slow case, which is usually the one that matters.
+      </div>
+
+      <p>
+        The last three are what make this an engineering argument rather than a
+        rhetorical one. Two of them are designed to be falsifiable: misattribution and
+        Sequencer p99 would both go non-zero if the design were wrong about itself.
+      </p>
+
+      <h3>Ordering policies, compared head to head</h3>
+
+      <p>
+        Because §&nbsp;03 made ordering a policy rather than a structure, these are
+        interchangeable and comparable on identical inputs.
+      </p>
+
+      <div class="wide">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">Policy</th><th scope="col">Behaviour</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">SERIAL</th><td>One request at a time. <strong>The honest baseline</strong> &mdash; what the system does today.</td></tr>
+              <tr><th scope="row">STRICT_FIFO</th><td>Work in parallel, but hold each answer until everything that arrived before it is finished. Isolates the cost of literal ordering.</td></tr>
+              <tr><th scope="row">DEPENDENCY_ORDER</th><td>Ship as soon as ready, with attribution and acknowledgements; a request waits only for something it genuinely depends on. <strong>Proposed default.</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="caption">
+          <b>SERIAL is in the list deliberately.</b> Option 2 of the brief asks
+          candidates to compare against &ldquo;a simple baseline such as SPY alone&rdquo;;
+          the equivalent discipline here is to measure against the behaviour we claim to
+          be improving on, not only against other clever designs.
+        </p>
+      </div>
+    </section>
+
+    <!-- ===================== 10 ===================== -->
+    <section id="s10">
+      <h2><span class="num">&sect; 10</span>How we know it is correct</h2>
+
+      <p>
+        Measuring speed is the easy half. The harder question is whether the thing is
+        <em>right</em>, and that needs a different kind of evidence.
+      </p>
+
+      <h3>Executable invariants</h3>
+
+      <div class="note">
+        <span class="term">Invariant</span> &mdash; something that must be true of the
+        system at all times, no matter what happens. &ldquo;The pool never runs more
+        workers than it has slots&rdquo; is an invariant.
+      </div>
+
+      <p>
+        The properties this document claims are written as code that checks them, not as
+        prose that asserts them.
+      </p>
+
+      <div class="wide">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">Invariant</th><th scope="col">What it forbids</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">no_deadlock</th><td>Any request still unfinished when everything has settled</td></tr>
+              <tr><th scope="row">completeness</th><td>A request the reader was acknowledged for that never produced any visible outcome</td></tr>
+              <tr><th scope="row">no_stale</th><td>Shipping an answer whose question had already changed</td></tr>
+              <tr><th scope="row">non_contradiction</th><td>The answer text changing without an addendum or replacement notice</td></tr>
+              <tr><th scope="row">causal_consistency</th><td>A dependent answer arriving before the answer it depends on</td></tr>
+              <tr><th scope="row">attribution</th><td>A policy that promises a requote shipping without one</td></tr>
+              <tr><th scope="row">pool_bound</th><td>More workers in flight than the pool allows</td></tr>
+              <tr><th scope="row">tokens_accounted</th><td>Shipping an answer that no worker ever actually computed</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <h3>Randomised testing</h3>
+
+      <div class="note">
+        <span class="term">Property-based testing</span> (or <em>fuzzing</em>) &mdash;
+        instead of writing example cases by hand, you generate thousands of random inputs
+        and assert that your invariants hold on every one. Hand-written tests cover the
+        failures you thought of; this covers the ones you didn&rsquo;t.
+      </div>
+
+      <p>
+        Because the Sequencer is a pure function (§&nbsp;05) and the simulator is
+        deterministic, a randomly generated chat can be replayed in well under a
+        millisecond. So the test suite generates random message streams &mdash; arbitrary
+        mixes of new questions, amendments, cancels, duplicates and references, at
+        arbitrary times, under all three policies and every pool size &mdash; and asserts
+        all eight invariants on each. A hundred thousand such chats run in a couple of
+        minutes without a single network call.
+      </p>
+
+      <p>
+        <strong>This found four real bugs that the hand-written tests did not</strong>,
+        all listed in §&nbsp;08: the orphaned follow-up, the delivered-then-cancelled
+        parent, the pool overrun in the ready window, and the stale answer surviving that
+        same window. It also falsified two of the invariants as too crude &mdash; which
+        was worth as much, because it forced them to state the property precisely rather
+        than approximately.
+      </p>
+
+      <h3>A correctness property you can break on command</h3>
+
+      <div class="note">
+        Claiming &ldquo;staleness is always zero&rdquo; is weak. Being able to make it
+        non-zero on demand is strong. The stop-signal race in §&nbsp;07b is modelled
+        faithfully: a worker already writing its answer finishes regardless. Running the
+        same scenario with version checking disabled ships the obsolete answer &mdash;
+        and the invariant checker catches it, along with a second violation noticing that
+        the delivered answer was never computed by any worker. Turn the check back on and
+        both return to zero.
+      </div>
+
+      <h3>Scenario suite</h3>
+
+      <div class="wide">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">Scenario</th><th scope="col">What it targets</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">1</th><td>The §&nbsp;01 transcript &mdash; everything at once; the headline demo</td></tr>
+              <tr><th scope="row">2</th><td>Burst of six simultaneous questions &mdash; parallelism and pool saturation</td></tr>
+              <tr><th scope="row">3</th><td>Slow Q1, fast Q2 &mdash; head-of-line blocking, in isolation</td></tr>
+              <tr><th scope="row">4</th><td>Amendment lands mid-tool-call &mdash; a change at the worst possible moment</td></tr>
+              <tr><th scope="row">5</th><td>Cancel after the draft is written &mdash; wasted-spend accounting</td></tr>
+              <tr><th scope="row">6</th><td>Amendment during the final draft &mdash; the stop-signal race; the version-check demo</td></tr>
+              <tr><th scope="row">7</th><td>Premise replaced mid-flight, then again after delivery &mdash; throwing work away, and the replacement notice</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p>
+        Tools are mocked with <strong>controllable latency</strong> &mdash; the simulator
+        decides exactly when a tool call returns. This is a deliberate upgrade over real
+        tools rather than a shortcut: reproducing &ldquo;the amendment arrives
+        <em>during</em> the tool call&rdquo; requires controlling precisely that, and a
+        real API makes the race unreproducible.
+      </p>
+
+      <p>
+        Workers also have a <strong>live mode</strong> that makes real
+        <code>claude-opus-5</code> calls against a portfolio fixture, with real
+        <code>claude-haiku-4-5</code> triage &mdash; so the demo shows the architecture
+        doing the actual job, not just moving tokens around. Scenario replay uses mocks
+        for determinism; live mode is for the demonstration.
+      </p>
+    </section>
+
+    <!-- ===================== 11 ===================== -->
+    <section id="s11">
+      <h2><span class="num">&sect; 11</span>Assumptions</h2>
+
+      <p>
+        Stated as assumptions because several are load-bearing, and a reader should be
+        able to reject one and immediately know what breaks.
+      </p>
+
+      <div class="wide">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">Assumption</th><th scope="col">If it is false</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Chats are independent</th><td>The Sequencer stops being per-chat, and the no-collisions property goes with it.</td></tr>
+              <tr><th scope="row">Within a chat, the only real ordering requirement is dependency</th><td>The thesis of §&nbsp;03, and the most important assumption here. If a compliance rule demands literal arrival order, STRICT_FIFO already exists as a policy and we pay the blocking knowingly.</td></tr>
+              <tr><th scope="row">Tool calls cannot be interrupted once started</th><td>Conservative. If they can, cancellation gets cheaper and the Tool call column of §&nbsp;07 simplifies.</td></tr>
+              <tr><th scope="row">Model calls can be interrupted</th><td>True over HTTP &mdash; though §&nbsp;07b exists precisely because interruption can still lose the race.</td></tr>
+              <tr><th scope="row">The classifier is fallible</th><td>Its errors are made asymmetric by design (§&nbsp;04).</td></tr>
+              <tr><th scope="row">Answer volume per chat is low enough that acknowledgements are not spam</th><td>If false, acknowledgements collapse into a single edited status message.</td></tr>
+              <tr><th scope="row">Single process</th><td>The event log is the boundary where splitting across machines would go.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 12 ===================== -->
+    <section id="s12">
+      <h2><span class="num">&sect; 12</span>What is built, and what is only designed</h2>
+
+      <p>
+        Five hours. The cut line is itself a design decision, so it is stated rather than
+        hidden.
+      </p>
+
+      <div class="scope">
+        <div class="scope-card built">
+          <h3>Built</h3>
+          <ul>
+            <li>Request register, lifecycle, dependency links, and the Sequencer as a pure function</li>
+            <li>Worker pool, change inboxes, checkpoint handling, version checking</li>
+            <li>Triage over the five relationships of §&nbsp;04, with the confidence asymmetry, and every decision auditable</li>
+            <li>Delivery: attribution, acknowledgements, addenda, replacement notices</li>
+            <li>Three policies, seven scenarios, the full metrics table</li>
+            <li>Eight executable invariants, a randomised fuzzer, and the version-check demonstration</li>
+            <li>Live mode: real Haiku triage and real Opus workers against a portfolio fixture</li>
+          </ul>
+        </div>
+
+        <div class="scope-card deferred">
+          <h3>Designed, not built</h3>
+          <ul>
+            <li><strong>MERGE / SPLIT relationships.</strong> The highest implementation cost in the §&nbsp;07 matrix &mdash; folding two running workers together, or spawning a second out of one &mdash; for the rarest real cases, and the two categories a small classifier is least reliable at telling apart. The matrix slot is designed; the code is not written. Adding them is additive, not structural.</li>
+            <li><strong>BOUNDED_REORDER(k) policy.</strong> Ship out of order, but never more than <em>k</em> places ahead of the oldest outstanding question. A real idea; three policies already prove the argument.</li>
+            <li><strong>Fair sharing across chats.</strong> One very busy chat can currently monopolise the worker pool. A per-chat cap is the obvious knob; real fair-share scheduling is not built.</li>
+            <li><strong>Real Slack or Discord integration.</strong> Authentication and webhooks are not what the brief grades. The replay harness demonstrates the same system better.</li>
+            <li><strong>Durable storage beyond the event log.</strong> Replay is what we need; surviving a crash is not under test.</li>
+            <li><strong>Retries, backoff, rate limiting.</strong> Real, orthogonal, and well understood.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 13 ===================== -->
+    <section id="s13">
+      <h2><span class="num">&sect; 13</span>Known failure modes</h2>
+
+      <p>
+        Listed because a design document that claims no weaknesses is not describing a
+        real system.
+      </p>
+
+      <ul>
+        <li><strong>Genuinely ambiguous messages.</strong> <em>&ldquo;Actually, Q3&rdquo;</em> may be an amendment or a new question; a human would ask which. The §&nbsp;04 bias mitigates this; it does not solve it.</li>
+        <li><strong>The ready-but-undelivered window is handled, not eliminated.</strong> A change landing between &ldquo;answer ready&rdquo; and &ldquo;answer shipped&rdquo; now correctly discards the pending answer (§&nbsp;08), but the reader may still see an acknowledgement followed by a different answer than they were expecting. Correct, mildly disorienting.</li>
+        <li><strong>Cross-chat pool starvation.</strong> One very busy chat can monopolise the workers. Per-chat caps exist; fair sharing does not (§&nbsp;12).</li>
+        <li><strong>Dependency cycles from classifier error.</strong> Detected and broken (§&nbsp;08), at the cost of weaker ordering for that pair.</li>
+        <li><strong>Unbounded chat history.</strong> The live request set is bounded and the classifier&rsquo;s input is bounded by construction (§&nbsp;08), but a very long-lived chat will eventually need its transcript summarised.</li>
+        <li><strong>The classifier is the weakest link.</strong> Everything downstream depends on it relating messages to requests correctly, and that is a genuinely hard judgement. The asymmetric thresholds make its errors recoverable rather than destructive, and the decision log makes every call auditable &mdash; but neither makes it right.</li>
+      </ul>
+    </section>
+
+    <!-- ===================== glossary ===================== -->
+    <section id="glossary">
+      <h2><span class="num">&mdash;</span>Glossary</h2>
+
+      <div class="wide">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">Term</th><th scope="col">Meaning</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Agent</th><td>A program that answers questions using a language model, calling tools to look things up along the way.</td></tr>
+              <tr><th scope="row">Tool call</th><td>The agent fetching external data &mdash; holdings, prices. The slow, expensive step.</td></tr>
+              <tr><th scope="row">Token</th><td>The unit language models are billed in, roughly a piece of a word. &ldquo;Wasted tokens&rdquo; are ones we paid for and threw away.</td></tr>
+              <tr><th scope="row">Message</th><td>One line somebody typed in the chat.</td></tr>
+              <tr><th scope="row">Request</th><td>One piece of work the agent owes an answer for. Several messages can relate to one request.</td></tr>
+              <tr><th scope="row">Parallel</th><td>Several requests being worked on at the same time.</td></tr>
+              <tr><th scope="row">Worker</th><td>One running job, answering one request.</td></tr>
+              <tr><th scope="row">Pool / slot</th><td>The bounded set of workers allowed to run at once; a request waits for a free slot.</td></tr>
+              <tr><th scope="row">FIFO</th><td>&ldquo;First in, first out&rdquo; &mdash; strict arrival order.</td></tr>
+              <tr><th scope="row">Head-of-line blocking</th><td>A slow item at the front of a queue delaying everything behind it.</td></tr>
+              <tr><th scope="row">Deadlock</th><td>A standstill where everything is waiting on something else and nothing can proceed.</td></tr>
+              <tr><th scope="row">Race</th><td>Two things happening at once where the outcome depends on which lands first.</td></tr>
+              <tr><th scope="row">Version</th><td>A counter on each request, incremented whenever its question changes. Used to recognise and ignore out-of-date results.</td></tr>
+              <tr><th scope="row">Stale</th><td>A result computed against a question that has since changed.</td></tr>
+              <tr><th scope="row">Checkpoint</th><td>A defined safe moment in a worker&rsquo;s run where it reads pending changes.</td></tr>
+              <tr><th scope="row">Classifier</th><td>A model that sorts each message into one of the five relationships of §&nbsp;04.</td></tr>
+              <tr><th scope="row">Confidence</th><td>The classifier&rsquo;s own estimate, 0 to 1, of whether it is right.</td></tr>
+              <tr><th scope="row">Pure function</th><td>Code that takes input and returns output without touching files, network, or the clock. Same input, same output, every time.</td></tr>
+              <tr><th scope="row">Deterministic</th><td>Produces exactly the same result every run &mdash; which is what makes replay and fuzzing possible.</td></tr>
+              <tr><th scope="row">Invariant</th><td>Something that must be true of the system at all times.</td></tr>
+              <tr><th scope="row">Property-based testing / fuzzing</th><td>Generating thousands of random inputs and asserting the invariants hold on all of them.</td></tr>
+              <tr><th scope="row">p99</th><td>The 99th percentile &mdash; the value 99 of 100 measurements fall under.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <p class="colophon">
+      Castle take-home &middot; Option 3 &middot; Jay Talwar &middot; jay@oxus-ai.com<br>
+      Design written before implementation, so the reasoning can be judged separately from the code.
+    </p>
+
+  </main>
+</div>
+</body>
+</html>

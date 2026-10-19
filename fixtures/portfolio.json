@@ -1,0 +1,17 @@
+{
+  "member": "demo-member",
+  "as_of": "2026-10-18",
+  "cash_usd": 48200,
+  "holdings": [
+    { "ticker": "NVDA", "name": "NVIDIA",            "shares": 1200, "price": 184.20, "sector": "Semiconductors" },
+    { "ticker": "TSM",  "name": "TSMC ADR",          "shares": 1800, "price": 141.05, "sector": "Semiconductors" },
+    { "ticker": "QQQ",  "name": "Invesco QQQ Trust", "shares": 900,  "price": 498.60, "sector": "Broad equity ETF" },
+    { "ticker": "AAPL", "name": "Apple",             "shares": 700,  "price": 231.40, "sector": "Consumer tech" },
+    { "ticker": "XOM",  "name": "Exxon Mobil",       "shares": 950,  "price": 118.75, "sector": "Energy" },
+    { "ticker": "TLT",  "name": "20+ Year Treasury", "shares": 1500, "price": 92.30,  "sector": "Rates" }
+  ],
+  "notes": [
+    "QQQ is ~8.5% NVIDIA and ~4% Apple by weight, so look-through exposure to both is larger than the direct lines suggest.",
+    "TSM fabs the majority of NVDA's leading-edge silicon, so the two lines are correlated beyond their sector label."
+  ]
+}

@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.DS_Store
+# run artifacts (event logs, metrics dumps). Scenario fixtures live in
+# scenarios/ and are tracked — so do NOT blanket-ignore *.jsonl here.
+runs/
+
+# hypothesis's example database
+.hypothesis/

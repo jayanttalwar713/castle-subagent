@@ -1,0 +1,61 @@
+{
+  "title": "The DESIGN.md §1 transcript — six messages, three requests",
+  "notes": [
+    "Ana asks a slow question; Ben asks a fast one behind it (head-of-line).",
+    "Ana amends hers mid-tool-call, preserving the premise (work is retained).",
+    "Cara duplicates Ana's question, so it is answered once and fanned out.",
+    "Ben references his own earlier answer, creating a dependency edge.",
+    "Cara cancels — but Ana asked first, so the request survives for her."
+  ],
+  "messages": [
+    {
+      "at": 0,
+      "author": "Ana",
+      "text": "What's my exposure to a Taiwan escalation?",
+      "rel": "NEW",
+      "label": "taiwan"
+    },
+    {
+      "at": 2,
+      "author": "Ben",
+      "text": "Is NVDA still my biggest position?",
+      "rel": "NEW",
+      "label": "nvda"
+    },
+    {
+      "at": 4,
+      "author": "Ana",
+      "text": "Actually make that Taiwan or South China Sea.",
+      "rel": "AMEND",
+      "target": "taiwan",
+      "preserves_premise": true
+    },
+    {
+      "at": 5,
+      "author": "Cara",
+      "text": "What's my exposure to Taiwan?",
+      "rel": "DUPLICATE",
+      "target": "taiwan"
+    },
+    {
+      "at": 9,
+      "author": "Ben",
+      "text": "And the second biggest?",
+      "rel": "REFERENCE",
+      "target": "nvda",
+      "label": "second"
+    },
+    {
+      "at": 11,
+      "author": "Cara",
+      "text": "never mind the Taiwan one",
+      "rel": "CANCEL",
+      "target": "taiwan"
+    }
+  ],
+  "work": {
+    "taiwan": { "plan": 0.6, "tool": 12.0, "draft": 1.5 },
+    "nvda": { "plan": 0.3, "tool": 0.8, "draft": 0.4 },
+    "second": { "plan": 0.3, "tool": 0.8, "draft": 0.4 }
+  }
+}

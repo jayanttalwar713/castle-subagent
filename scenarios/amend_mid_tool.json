@@ -1,0 +1,13 @@
+{
+  "title": "Amendment lands mid-tool-call — a change at the worst possible moment",
+  "notes": [
+    "The amendment arrives while the expensive tool call is in flight.",
+    "Premise preserved: the call is allowed to land and the change is applied",
+    "at the worker's next checkpoint, so nothing is paid for twice."
+  ],
+  "messages": [
+    {"at": 0.0, "author": "Ana", "text": "What's my exposure to a Taiwan escalation?",  "rel": "NEW",   "label": "q"},
+    {"at": 3.0, "author": "Ana", "text": "Also include South China Sea.",               "rel": "AMEND", "target": "q", "preserves_premise": true}
+  ],
+  "work": { "q": {"plan": 0.5, "tool": 8.0, "draft": 1.0} }
+}

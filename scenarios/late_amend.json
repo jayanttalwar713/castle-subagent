@@ -1,0 +1,14 @@
+{
+  "title": "Amendment during the final draft — the abort loses the race",
+  "notes": [
+    "The amendment lands while the worker is already drafting, so the abort",
+    "arrives too late and that worker finishes and reports anyway.",
+    "Version gating ignores the superseded result. Run with",
+    "--no-version-gate to watch it reach the chat instead."
+  ],
+  "messages": [
+    {"at": 0.0, "author": "Ana", "text": "What's my exposure to a Taiwan escalation?", "rel": "NEW",   "label": "q"},
+    {"at": 4.0, "author": "Ana", "text": "Also include South China Sea.",              "rel": "AMEND", "target": "q", "preserves_premise": true}
+  ],
+  "work": { "q": {"plan": 0.5, "tool": 2.0, "draft": 5.0} }
+}

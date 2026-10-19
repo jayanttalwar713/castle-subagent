@@ -1,0 +1,3 @@
+anthropic>=0.69
+pytest>=8
+hypothesis>=6

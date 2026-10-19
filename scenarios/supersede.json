@@ -1,0 +1,14 @@
+{
+  "title": "Premise replaced mid-flight, then amended after delivery",
+  "notes": [
+    "Exercises the two paths that throw work away: a premise-replacing",
+    "amendment discards retained tool results, and an amendment arriving",
+    "after the answer already shipped produces a visible replacement notice."
+  ],
+  "messages": [
+    {"at": 0.0,  "author": "Ana", "text": "What's my exposure to a Taiwan escalation?", "rel": "NEW",   "label": "q"},
+    {"at": 2.0,  "author": "Ana", "text": "Sorry, I meant inflation, not Taiwan.",      "rel": "AMEND", "target": "q", "preserves_premise": false},
+    {"at": 14.0, "author": "Ana", "text": "Actually make that core inflation only.",    "rel": "AMEND", "target": "q", "preserves_premise": false}
+  ],
+  "work": { "q": {"plan": 0.5, "tool": 4.0, "draft": 1.0} }
+}

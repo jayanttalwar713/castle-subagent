@@ -1,0 +1,12 @@
+{
+  "title": "Slow Q1, fast Q2 — head-of-line blocking in isolation",
+  "notes": ["The minimal case: one slow question, then one fast one behind it."],
+  "messages": [
+    {"at": 0.0, "author": "Ana", "text": "Model my whole book against a 2008-style shock", "rel": "NEW", "label": "slow"},
+    {"at": 0.5, "author": "Ben", "text": "What's my cash balance?",                        "rel": "NEW", "label": "fast"}
+  ],
+  "work": {
+    "slow": {"plan": 0.5, "tool": 20.0, "draft": 2.0},
+    "fast": {"plan": 0.2, "tool": 0.3,  "draft": 0.2}
+  }
+}

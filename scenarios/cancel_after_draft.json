@@ -1,0 +1,17 @@
+{
+  "title": "Cancel after the draft is written — wasted-spend accounting",
+  "notes": [
+    "The cancel lands during DRAFTING, after the expensive tool call has",
+    "already been paid for. Those tokens are charged as waste: the price of",
+    "mutability, in dollars."
+  ],
+  "messages": [
+    {"at": 0.0, "author": "Ana", "text": "Run the full scenario analysis on my book", "rel": "NEW",    "label": "q"},
+    {"at": 0.5, "author": "Ben", "text": "What's my cash balance?",                   "rel": "NEW",    "label": "other"},
+    {"at": 6.0, "author": "Ana", "text": "actually never mind, I have to run",        "rel": "CANCEL", "target": "q"}
+  ],
+  "work": {
+    "q":     {"plan": 0.5, "tool": 4.0, "draft": 6.0},
+    "other": {"plan": 0.2, "tool": 0.3, "draft": 0.2}
+  }
+}
