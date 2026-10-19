@@ -92,13 +92,13 @@ def cmd_compare(args) -> int:
     return 0
 
 
-def _load_dotenv() -> None:
+def _load_dotenv(path: Path | None = None) -> None:
     """Read .env into the environment, without taking a dependency for it.
 
     The README tells you to put your key in .env; without this, nothing would
     actually read it. Existing environment variables always win.
     """
-    path = Path(__file__).resolve().parent.parent / ".env"
+    path = path or Path(__file__).resolve().parent.parent / ".env"
     if not path.exists():
         return
     for line in path.read_text().splitlines():

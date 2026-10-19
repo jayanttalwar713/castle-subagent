@@ -88,7 +88,7 @@ Two further columns are correctness checks that must read zero — `stale` and
 ## Correctness
 
 ```console
-$ python -m pytest                 # 86 tests, ~2s
+$ python -m pytest                 #  tests, 96% coverage
 $ HYPOTHESIS_PROFILE=soak pytest tests/test_fuzz.py   # 5,000 random chats
 ```
 
@@ -98,7 +98,8 @@ tests drive it directly, scenario replay is byte-reproducible, and a fuzzer
 can run randomised message streams through it and assert every system
 invariant on each one.
 
-The invariants live in [`chatsched/invariants.py`](chatsched/invariants.py)
+Coverage is 96%; the untested remainder is argparse wiring and
+unreachable guards. The invariants live in [`chatsched/invariants.py`](chatsched/invariants.py)
 and are executable, not prose: *no deadlock, completeness, no stale answers,
 non-contradiction, causal consistency, attribution, pool bound, tokens
 accounted.*

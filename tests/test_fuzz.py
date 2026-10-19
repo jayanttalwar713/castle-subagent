@@ -143,3 +143,34 @@ def test_every_request_terminates(stream):
     sim = Simulation(messages=_build(raw), work=work, policy=DependencyOrder(), pool_size=2)
     result = sim.run()
     assert all(r.is_terminal for r in result.sequencer.requests.values())
+
+
+@given(stream=message_stream(), pool_size=st.integers(1, 3))
+def test_turning_off_version_gating_breaks_staleness_and_nothing_structural(
+    stream, pool_size
+):
+    """Scopes what version gating is actually for.
+
+    Without it, superseded results reach the chat — so `no_stale` and
+    `non_contradiction` may fail. But the structural properties must survive
+    regardless: nothing may hang, every question must still get an outcome,
+    and the pool must still respect its limit. If turning off one check could
+    deadlock the scheduler, the two concerns were tangled together.
+    """
+    raw, work = stream
+    policy = DependencyOrder()
+    sim = Simulation(
+        messages=_build(raw), work=work, policy=policy,
+        pool_size=pool_size, version_gate=False,
+    )
+    result = sim.run()
+
+    structural = {"no_deadlock", "completeness", "pool_bound", "causal_consistency"}
+    broken = {
+        v.invariant
+        for v in invariants.check(result.sequencer, result.transcript, policy, pool_size)
+    }
+    assert not (broken & structural), (
+        f"disabling version gating broke something structural: {broken & structural}\n"
+        + "\n".join(f"  {m}" for m in raw)
+    )
