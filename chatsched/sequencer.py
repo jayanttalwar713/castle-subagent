@@ -434,7 +434,8 @@ class Sequencer:
         self._in_flight[req.id] = req.version
         self.max_in_flight = max(self.max_in_flight, len(self._in_flight))
         return Dispatch(
-            req.id, req.version, req.spec, tuple(req.tool_results), req.as_of
+            req.id, req.version, req.spec, tuple(req.tool_results),
+            req.as_of, req.member,
         )
 
     def _snapshot_for(self, now: float) -> str:

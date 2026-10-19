@@ -232,6 +232,7 @@ class Dispatch:
     spec: str
     retained_tool_results: tuple[str, ...] = ()
     as_of: str | None = None
+    member: str | None = None
 
 
 @dataclass(frozen=True)

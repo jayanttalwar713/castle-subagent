@@ -1,0 +1,22 @@
+{
+  "title": "A genuinely busy chat — every relationship, including the ones that cost nothing",
+  "notes": [
+    "Built to exercise everything the classifier now has to tell apart:",
+    "chit-chat that should cost nothing, an amendment that should be rewritten",
+    "rather than concatenated, a follow-up that depends on an earlier answer,",
+    "a duplicate within one household, the same words from a different member",
+    "(not a duplicate), and an ambiguous 'no' that should be asked about",
+    "rather than acted on."
+  ],
+  "messages": [
+    {"at": 0.0,  "author": "Ana",  "member": "ana", "text": "What's my exposure to a Taiwan escalation?"},
+    {"at": 2.0,  "author": "Ben",  "member": "ben", "text": "Is NVDA still my biggest position?"},
+    {"at": 4.0,  "author": "Cara", "member": "ana", "text": "morning all"},
+    {"at": 6.0,  "author": "Ana",  "member": "ana", "text": "Actually make that Taiwan or South China Sea."},
+    {"at": 10.0, "author": "Ben",  "member": "ben", "text": "And the second biggest?"},
+    {"at": 13.0, "author": "Cara", "member": "ana", "text": "same question as Ana's please"},
+    {"at": 16.0, "author": "Dev",  "member": "dev", "text": "What's my exposure to a Taiwan escalation?"},
+    {"at": 20.0, "author": "Ana",  "member": "ana", "text": "no"},
+    {"at": 24.0, "author": "Ben",  "member": "ben", "text": "thanks!!"}
+  ]
+}

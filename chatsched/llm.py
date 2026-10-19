@@ -23,6 +23,22 @@ from .triage import InboundMessage, apply_confidence_bias
 TRIAGE_MODEL = "claude-haiku-4-5"
 WORKER_MODEL = "claude-opus-5"
 
+#: The SDK defaults to a 600s read timeout and two retries — up to half an
+#: hour on one stalled call. For a chat agent that is indefensible: the asker
+#: waits and is told nothing.
+#:
+#: Triage gets the tighter budget because ingestion is sequential — messages
+#: have to be classified in arrival order, since each one is classified
+#: *against* the live set the previous ones produced. So a hung triage call
+#: blocks every later message: head-of-line blocking on the ingress path, in
+#: a system built to remove it.
+#:
+#: A timeout raises, which the worker loop already turns into a Failed event
+#: and a "couldn't answer" notice — so the reader is told, rather than left
+#: waiting (§3, completeness).
+TRIAGE_TIMEOUT_S = 15.0
+WORKER_TIMEOUT_S = 120.0
+
 FIXTURES = Path(__file__).resolve().parent.parent / "fixtures"
 
 
@@ -117,7 +133,9 @@ class LLMTriage:
     name = TRIAGE_MODEL
 
     def __init__(self, client: AsyncAnthropic | None = None) -> None:
-        self.client = client or AsyncAnthropic()
+        self.client = client or AsyncAnthropic(
+            timeout=TRIAGE_TIMEOUT_S, max_retries=1
+        )
         #: Every decision, so the classifier is inspectable rather than a
         #: black box. `--explain` prints this.
         self.decisions: list[dict] = []
@@ -228,7 +246,17 @@ HOLDINGS_TOOL = {
 _RETAINED_TOOL_USE_ID = "toolu_retained"
 
 
-def load_portfolio() -> dict:
+def load_portfolio(member: str | None = None) -> dict:
+    """The holdings for one member.
+
+    The Sequencer keeps members' questions apart (§11); if every worker then
+    loaded the same file, that separation would stop at the door and the two
+    answers would be identical anyway.
+    """
+    if member:
+        per_member = FIXTURES / "portfolios" / f"{member}.json"
+        if per_member.exists():
+            return json.loads(per_member.read_text())
     return json.loads((FIXTURES / "portfolio.json").read_text())
 
 
@@ -238,7 +266,9 @@ class LLMWorker:
     name = WORKER_MODEL
 
     def __init__(self, client: AsyncAnthropic | None = None) -> None:
-        self.client = client or AsyncAnthropic()
+        self.client = client or AsyncAnthropic(
+            timeout=WORKER_TIMEOUT_S, max_retries=1
+        )
         self.portfolio = load_portfolio()
 
     async def answer(
@@ -247,6 +277,7 @@ class LLMWorker:
         checkpoint,
         retained: tuple[str, ...] = (),
         as_of: str | None = None,
+        member: str | None = None,
     ) -> tuple[str, int, list[str]]:
         """Run the agent loop.
 
@@ -319,10 +350,9 @@ class LLMWorker:
             for block in response.content:
                 if block.type != "tool_use":
                     continue
+                portfolio = load_portfolio(member)
                 payload = json.dumps(
-                    {**self.portfolio, "data_version": as_of}
-                    if as_of
-                    else self.portfolio
+                    {**portfolio, "data_version": as_of} if as_of else portfolio
                 )
                 tool_results.append(payload)
                 results.append(

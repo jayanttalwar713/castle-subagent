@@ -71,7 +71,7 @@ class FakeWorker:
         self.retained_seen: list[tuple] = []
         self.as_of_seen: list[str | None] = []
 
-    async def answer(self, spec, checkpoint, retained=(), as_of=None):
+    async def answer(self, spec, checkpoint, retained=(), as_of=None, member=None):
         self.specs.append(spec)
         self.retained_seen.append(tuple(retained))
         self.as_of_seen.append(as_of)
@@ -251,3 +251,33 @@ async def test_the_pinned_data_version_reaches_the_worker(fakes):
     assert all(seen is not None for seen in worker.as_of_seen), "pin never arrived"
     # Asked at the same moment, so they must answer against the same data.
     assert len(set(worker.as_of_seen)) == 1
+
+
+async def test_a_stalled_worker_tells_the_reader_rather_than_hanging(monkeypatch):
+    """The SDK defaults to a 600s read timeout and two retries — up to half an
+    hour on one stalled call, during which the asker is told nothing.
+
+    Bounded, a timeout raises, and the existing failure path turns it into a
+    "couldn't answer" notice. Completeness (§3) is not suspended because
+    something upstream was slow.
+    """
+    class StallingWorker(FakeWorker):
+        async def answer(self, spec, checkpoint, retained=(), as_of=None, member=None):
+            raise TimeoutError("request timed out")
+
+    triage = FakeTriage()
+    monkeypatch.setattr(llm_module, "LLMTriage", lambda *a, **k: triage)
+    monkeypatch.setattr(llm_module, "LLMWorker", lambda *a, **k: StallingWorker())
+
+    code = await run([message("a question that stalls", label="q")])
+
+    # It finished, and the invariant checker is satisfied — which it only is
+    # if the reader was given an outcome.
+    assert code == 0
+
+
+async def test_the_model_clients_are_not_left_on_the_sdk_default_timeout():
+    from chatsched.llm import TRIAGE_TIMEOUT_S, WORKER_TIMEOUT_S
+
+    assert TRIAGE_TIMEOUT_S <= 30, "ingestion is sequential; a slow triage blocks every later message"
+    assert WORKER_TIMEOUT_S <= 180

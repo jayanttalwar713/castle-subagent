@@ -1,0 +1,15 @@
+{
+  "member": "dev",
+  "as_of": "2026-10-18",
+  "cash_usd": 12400,
+  "holdings": [
+    { "ticker": "VTI",  "name": "Vanguard Total Market", "shares": 1400, "price": 302.10, "sector": "Broad equity ETF" },
+    { "ticker": "BRK.B","name": "Berkshire Hathaway B",  "shares": 300,  "price": 489.75, "sector": "Diversified holding" },
+    { "ticker": "JNJ",  "name": "Johnson & Johnson",     "shares": 450,  "price": 162.30, "sector": "Healthcare" },
+    { "ticker": "GLD",  "name": "SPDR Gold Shares",      "shares": 260,  "price": 241.80, "sector": "Commodities" }
+  ],
+  "notes": [
+    "VTI is ~1.6% NVIDIA and ~0.9% Apple by weight, so look-through tech exposure is modest.",
+    "No direct semiconductor or Taiwan-domiciled holdings."
+  ]
+}
