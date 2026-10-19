@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import pytest
 
+from chatsched import evaluate
 from chatsched.evaluate import Case, Outcome, Report, load_cases
 from chatsched.model import Relationship
 
@@ -168,3 +169,86 @@ def test_the_labelled_set_keeps_real_ambiguity_in_it():
         "an ambiguous label needs its rationale written down, or it is "
         "indistinguishable from a mistake"
     )
+
+
+# ------------------------------------ DUPLICATE loses work too (the gap) --
+
+
+@pytest.mark.parametrize("expected", [Relationship.NEW, Relationship.REFERENCE,
+                                      Relationship.AMEND])
+def test_folding_a_real_question_into_someone_elses_is_destructive(expected):
+    """DUPLICATE suppresses a distinct question exactly the way AMEND does.
+
+    This is the `two_members` scenario: Dev's "same for me please" attached to
+    Ana's request. His question is never asked, and he is handed her numbers.
+    The eval scored it as merely redundant until this test existed.
+    """
+    o = outcome(expected, Relationship.DUPLICATE)
+    assert o.destructive_error
+    assert not o.redundant_error
+
+
+def test_a_correct_duplicate_is_not_an_error():
+    assert not outcome(Relationship.DUPLICATE, Relationship.DUPLICATE).destructive_error
+
+
+def test_the_sweep_prices_duplicate_too():
+    """The sweep had its own copy of this rule, and that copy was the one
+    missing DUPLICATE. Both now go through `loses_work`."""
+    assert Relationship.DUPLICATE in Report.LOSES_WORK
+    report = Report(outcomes=[
+        outcome(Relationship.NEW, Relationship.DUPLICATE, confidence=0.60),
+    ])
+    rows = {r["threshold"]: r for r in report.sweep([0.0, 0.80])}
+    assert rows[0.0]["destroyed"] == 1, "a suppressed question, scored as such"
+    assert rows[0.80]["destroyed"] == 0 and rows[0.80]["redundant"] == 0
+
+
+def test_the_two_definitions_cannot_drift_again():
+    """`loses_work` is the single source; the property and the sweep both
+    call it. Asserting they agree on every pair is cheap insurance."""
+    for used in Relationship:
+        for expected in Relationship:
+            direct = evaluate.loses_work(used, expected)
+            via_property = Outcome(
+                case=case(expected), predicted=used, used=used, confidence=1.0,
+                target=None, fell_back=False, reasoning="",
+            ).destructive_error
+            assert direct == via_property, (used, expected)
+
+
+# ------------------------------------------- crossing a portfolio boundary --
+
+
+def _ctx(member):
+    return [{"id": "r1", "spec": "Taiwan exposure", "askers": ["ana"],
+             "member": member, "stage": "TOOL_CALL", "answer": None}]
+
+
+def _dup_outcome(target_member, asker_member, target="r1"):
+    c = Case(context=_ctx(target_member), author="dev", member=asker_member,
+             text="same for me please", expected=Relationship.NEW,
+             expected_target=None, hard=True, note="")
+    return Outcome(case=c, predicted=Relationship.DUPLICATE,
+                   used=Relationship.DUPLICATE, confidence=0.9,
+                   target=target, fell_back=False, reasoning="")
+
+
+def test_a_duplicate_across_members_is_flagged_as_a_disclosure():
+    """Worse than losing the question: Dev would be shown Ana's holdings."""
+    assert _dup_outcome(target_member="ana", asker_member="dev").disclosure_error
+
+
+def test_a_duplicate_within_one_household_is_not():
+    assert not _dup_outcome(target_member="ana", asker_member="ana").disclosure_error
+
+
+def test_only_duplicates_can_disclose():
+    o = outcome(Relationship.NEW, Relationship.AMEND)
+    assert not o.disclosure_error
+
+
+def test_an_unresolvable_target_is_not_reported_as_a_disclosure():
+    """Absence of evidence is not evidence of a leak — a metric that guesses
+    would be worse than one that abstains."""
+    assert not _dup_outcome("ana", "dev", target="nonexistent").disclosure_error

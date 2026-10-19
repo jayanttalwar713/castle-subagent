@@ -263,14 +263,21 @@ The argument above is sound. The thresholds implementing it — `0.75` and
 result is a negative one about this design:
 
 > **Self-reported confidence barely separates right answers from wrong ones.**
-> Across 152 observations the mean confidence is 0.93 when correct and 0.85
-> when wrong — and mistakes occur as high as 0.95. Sweeping the threshold from
-> 0 to 0.90 does not reduce destroyed questions at all; it only adds redundant
-> ones. The only setting that helps is 0.95, which rejects 28 predictions to
-> save 5.
+> Across 152 observations the mean confidence is 0.93 when correct and 0.84
+> when wrong — a gap of about +0.09, with mistakes arriving as low as 0.72 and
+> as high as 0.95. Raising the threshold does reduce destroyed questions, but
+> at a punitive exchange rate: moving from 0 to 0.90 saved between one and
+> three of them while adding ten to twelve redundant answers, and 0.95 buys
+> the rest by rejecting roughly a quarter of all predictions.
 
-A threshold cannot buy this asymmetry, because legitimate amendments and
-mistaken ones arrive at the same confidence. Two things replace it:
+Worse than the exchange rate is the stability. Two identical 152-case runs
+gave 7 destroyed questions and 4 — **the run-to-run variance on the same
+input is as large as the effect the threshold is supposed to produce.** A
+knob you cannot distinguish from noise is not a safety mechanism, whatever
+its average behaviour.
+
+So a threshold cannot buy this asymmetry, because legitimate amendments and
+mistaken ones arrive at indistinguishable confidence. Two things replace it:
 
 **A signal that is not confidence.** Whether the message *names what it refers
 to* separates them cleanly. "Never mind the Taiwan one" names its target; a
@@ -713,9 +720,11 @@ matrix, and the thing §4 actually claims: **which direction the errors go.**
 
 Two measurement details matter more than the headline number:
 
-- **It repeats.** The classifier is not deterministic; identical runs score
-  between 89% and 97%. A single pass is an anecdote, so `--repeats` runs the
-  whole set several times and reports the spread.
+- **It repeats.** The classifier is not deterministic; identical passes over
+  the same 38 cases score between 92% and 97%. A single pass is an anecdote,
+  so `--repeats` runs the whole set several times and reports the spread. The
+  variance is not a footnote — §4 shows it is large enough to swamp the
+  mechanism it was measuring.
 - **It separates the hard cases.** A good score on "never mind the Taiwan one"
   hides a bad one on "no". Clear-cut and ambiguous cases are reported apart.
 
@@ -891,7 +900,19 @@ the reasons given below.
 Listed because a design document that claims no weaknesses is not describing a
 real system.
 
-- **Genuinely ambiguous messages.** *"Actually, Q3"* may be an amendment or a new question; a human would ask which. The §4 bias mitigates this; it does not solve it.
+- **Genuinely ambiguous messages.** *"Actually, Q3"* may be an amendment or a new question; a human would ask which. The §4 bias mitigates this; it does not solve it. Across repeated eval runs the residual errors are not scattered — they land on the same three or four messages every time:
+
+  | Message | Labelled | Usually predicted |
+  |---|---|---|
+  | *"what about bonds?"* | `NEW` | `AMEND` |
+  | *"is that still running?"* | `IGNORE` | `REFERENCE` |
+  | *"drop it"* (two candidates, one running) | `CANCEL` | `IGNORE` |
+  | *"What's my exposure to Taiwan?"* (Cara, after Ana) | `DUPLICATE` | `AMEND` |
+
+  Three of the four are messages a human would also have to ask about. The
+  fourth is a real miss, and the one worth attacking first.
+
+- **Questions about the system are not a category.** *"Is that still running?"*, *"did you get that?"*, *"how long will this take?"* are not portfolio questions and not chit-chat, but the taxonomy has no slot for them — so they are forced into `IGNORE` (the member is ignored) or `REFERENCE` (a worker is dispatched to answer a question about the scheduler). The Sequencer already knows the answer and needs no model to produce it. A `STATUS` relationship would be cheap and would remove a destructive failure mode; it is not built, and it is the change I would make next to §4.
 - **The ready-but-undelivered window is handled, not eliminated.** A change landing between "answer ready" and "answer shipped" now correctly discards the pending answer (§8), but the reader may still see an acknowledgement followed by a different answer than they were expecting. Correct, mildly disorienting.
 - **Cross-chat pool starvation.** One very busy chat can monopolise the workers. Per-chat caps exist; fair sharing does not (§12).
 - **Dependency cycles from classifier error.** Detected and broken (§8), at the cost of weaker ordering for that pair.
@@ -914,7 +935,7 @@ is which seems more useful than a verdict.
 |---|---|---|
 | **Scheduling correctness** | ready | Nine invariants, 15,000 randomised chats per soak run, every relationship and policy exercised. |
 | **Behaviour under change** | ready | The §7 matrix is implemented and tested, including the cases that arrive too late. |
-| **Classification quality** | measured | 95% agreement — so roughly 1 message in 20 is misread. Tolerable because the errors are *shaped* to be recoverable, not because they are rare. |
+| **Classification quality** | measured | 94–95% agreement across repeated runs — roughly 1 message in 20 is misread. Tolerable because the errors are *shaped* to be recoverable, not because they are rare. The residual misses are concentrated on a handful of genuinely ambiguous messages, listed in §13. |
 | **Surviving a restart** | ready | Every event is written to an append-only log before it is handled, and replaying the log rebuilds the chat. Tested by killing the run after *every* event in every scenario, recovering, and asserting the final state is identical. |
 | **Sustained load** | missing | No backpressure. If messages arrive faster than the pool drains, the queue grows without limit and nobody is told. |
 | **Many chats at once** | missing | One Sequencer per chat, but nothing supervises them. A single busy chat can take the whole worker pool. |

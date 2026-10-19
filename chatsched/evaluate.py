@@ -44,6 +44,27 @@ class Case:
     note: str
 
 
+def loses_work(used: Relationship, expected: Relationship) -> bool:
+    """Does predicting `used` when the answer was `expected` lose work?
+
+    The single definition. It used to exist twice — once as a property and
+    once inline in the threshold sweep — and the two drifted, which is how
+    DUPLICATE came to be missing from one of them. A rule written down twice
+    is a rule that will eventually disagree with itself.
+    """
+    if used is expected:
+        return False
+    # CANCEL and IGNORE suppress the request outright; AMEND and DUPLICATE
+    # suppress it by folding it into one that already exists. All four are
+    # silent from the asker's point of view.
+    return used in (
+        Relationship.CANCEL,
+        Relationship.IGNORE,
+        Relationship.AMEND,
+        Relationship.DUPLICATE,
+    )
+
+
 @dataclass
 class Outcome:
     case: Case
@@ -68,21 +89,43 @@ class Outcome:
     def destructive_error(self) -> bool:
         """The prediction loses work the label would have kept.
 
-        Three ways, all silent from the asker's point of view:
-          CANCEL  kills a request that deserved an answer
-          IGNORE  drops a question that was never acknowledged
-          AMEND   folds a *new* question into an existing one, overwriting it
+        Four ways, all silent from the asker's point of view:
+          CANCEL     kills a request that deserved an answer
+          IGNORE     drops a question that was never acknowledged
+          AMEND      folds a *new* question into an existing one, overwriting it
+          DUPLICATE  attaches the asker to someone else's request instead of
+                     creating theirs, so their question is never asked
 
-        That last one is §4's own headline example, so a metric that counts
-        only CANCEL and IGNORE misses the case the argument is built on.
+        AMEND is §4's own headline example, so a metric counting only CANCEL
+        and IGNORE misses the case the argument is built on. DUPLICATE is the
+        same shape and was missed for the same reason: both *suppress a
+        distinct question* by folding it into an existing one. It is the
+        `two_members` scenario — Dev's "same for me please" answered with
+        Ana's numbers — and the eval scored it as merely redundant while the
+        scheduler had a whole fix devoted to preventing it.
         """
-        if self.used is self.case.expected:
+        return loses_work(self.used, self.case.expected)
+
+    @property
+    def disclosure_error(self) -> bool:
+        """A `DUPLICATE` that would answer one member with another's figures.
+
+        Strictly worse than losing the question: the asker does not merely go
+        unanswered, they are shown holdings that are not theirs. Reported
+        separately because "1 in 20 messages misread" is survivable and "1 in
+        20 leaks a portfolio" is not — averaging them together hides that.
+
+        The Sequencer refuses to cross this boundary regardless (§11), so this
+        counts how often triage *proposes* it, not how often it happens.
+        """
+        if self.used is not Relationship.DUPLICATE:
             return False
-        if self.used in (Relationship.CANCEL, Relationship.IGNORE):
-            return True
-        if self.used is Relationship.AMEND and self.case.expected is not Relationship.AMEND:
-            return True
-        return False
+        target = next(
+            (r for r in self.case.context if r.get("id") == self.target), None
+        )
+        if target is None:
+            return False
+        return target.get("member") != self.case.member
 
     @property
     def redundant_error(self) -> bool:
@@ -143,9 +186,11 @@ class Report:
     # -- the thing §4 actually claims -------------------------------------
 
     #: Every relationship that can lose work when predicted wrongly. Wider
-    #: than model.DESTRUCTIVE, which gates CANCEL and IGNORE only — AMEND is
-    #: destructive in the NEW→AMEND direction that §4 is built around.
-    LOSES_WORK = (Relationship.CANCEL, Relationship.IGNORE, Relationship.AMEND)
+    #: than model.DESTRUCTIVE, which gates CANCEL and IGNORE only — AMEND and
+    #: DUPLICATE both suppress a distinct question by folding it into an
+    #: existing one, which is the direction §4 is built around.
+    LOSES_WORK = (Relationship.CANCEL, Relationship.IGNORE,
+                  Relationship.AMEND, Relationship.DUPLICATE)
 
     def sweep(self, thresholds: list[float]) -> list[dict]:
         """What each threshold would have cost, if applied to everything that
@@ -163,14 +208,9 @@ class Report:
                 used = o.predicted
                 if used in self.LOSES_WORK and o.confidence < cut:
                     used = Relationship.NEW
-                wrong = used is not o.case.expected
-                if wrong and (
-                    used in (Relationship.CANCEL, Relationship.IGNORE)
-                    or (used is Relationship.AMEND
-                        and o.case.expected is not Relationship.AMEND)
-                ):
+                if loses_work(used, o.case.expected):
                     destroyed += 1
-                elif wrong:
+                elif used is not o.case.expected:
                     redundant += 1
             rows.append({"threshold": cut, "destroyed": destroyed,
                          "redundant": redundant})
@@ -299,6 +339,15 @@ def render(report: Report, show_errors: bool = True) -> str:
     lines.append("─" * 42)
     lines.append(f"  destroyed a real question (silent, unrecoverable) : {destroyed}")
     lines.append(f"  answered something it needn't have (noisy, fine)  : {redundant}")
+
+    disclosures = [o for o in report.outcomes if o.disclosure_error]
+    lines.append(
+        f"  proposed one member's answer for another (§11)    : {len(disclosures)}"
+    )
+    for o in disclosures:
+        lines.append(f"      {o.case.author}: {o.case.text!r} → {o.target}")
+    if not disclosures:
+        lines.append("      (the Sequencer refuses these anyway; this counts proposals)")
 
     sep = report.confidence_separation()
     lines.append("")

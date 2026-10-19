@@ -1516,10 +1516,19 @@
           </svg>
         </div>
         <p class="caption">
-          <b>The threshold buys nothing until it buys too much.</b> From 0 to 0.90 the
-          red bars barely move while the amber ones triple. Only at 0.95 do destroyed
-          questions reach zero &mdash; by rejecting 29 predictions to save 4.
+          <b>The threshold buys little until it buys too much.</b> From 0 to 0.90 the
+          red bars move by two while the amber ones more than triple. Only at 0.95 do
+          destroyed questions reach zero &mdash; by rejecting 29 predictions to save 4.
+          One run; a second identical run started at 7 destroyed rather than 4.
         </p>
+      </div>
+
+      <div class="note">
+        <strong>The variance is the real finding.</strong> Two identical 152-case runs
+        gave 7 destroyed questions and 4. The run-to-run spread on the same input is as
+        large as the effect the threshold is supposed to produce &mdash; so a knob you
+        cannot distinguish from noise is not a safety mechanism, whatever its average
+        behaviour.
       </div>
 
       <p>
@@ -2315,24 +2324,26 @@
             </thead>
             <tbody>
               <tr><th scope="row">NEW</th><td>1.00</td><td>0.81</td><td>32</td></tr>
-              <tr><th scope="row">AMEND</th><td>0.90</td><td>1.00</td><td>36</td></tr>
-              <tr><th scope="row">CANCEL</th><td>1.00</td><td>1.00</td><td>20</td></tr>
-              <tr><th scope="row">DUPLICATE</th><td>0.80</td><td>1.00</td><td>8</td></tr>
+              <tr><th scope="row">AMEND</th><td>0.86</td><td>1.00</td><td>36</td></tr>
+              <tr><th scope="row">CANCEL</th><td>1.00</td><td>0.95</td><td>20</td></tr>
+              <tr><th scope="row">DUPLICATE</th><td>1.00</td><td>0.75</td><td>8</td></tr>
               <tr><th scope="row">REFERENCE</th><td>0.89</td><td>1.00</td><td>16</td></tr>
-              <tr><th scope="row">IGNORE</th><td>1.00</td><td>0.95</td><td>40</td></tr>
+              <tr><th scope="row">IGNORE</th><td>0.97</td><td>0.95</td><td>40</td></tr>
             </tbody>
           </table>
         </div>
         <p class="caption">
-          <b>95% agreement overall; 96 of 96 on the clear-cut cases.</b> Every
-          remaining disagreement is on a message a person would also hesitate over.
+          <b>One four-pass run: 143/152 = 94% agreement, 94 of 96 clear-cut.</b>
+          A second identical run scored 95%. Quoting a single pass would overstate
+          the precision available here &mdash; the spread is the finding, not noise
+          around it.
         </p>
       </div>
 
       <p>Two measurement details matter more than the headline number:</p>
 
       <ul>
-        <li><strong>It repeats.</strong> The classifier is not deterministic &mdash; identical runs score between 92% and 97%. A single pass is an anecdote, so <code>--repeats</code> runs the whole set several times and reports the spread.</li>
+        <li><strong>It repeats.</strong> The classifier is not deterministic &mdash; identical passes score between 92% and 97%. A single pass is an anecdote, so <code>--repeats</code> runs the whole set several times and reports the spread. The variance is not a footnote: §&nbsp;04 shows it is large enough to swamp the mechanism it was measuring.</li>
         <li><strong>It separates the hard cases.</strong> A good score on &ldquo;never mind the Taiwan one&rdquo; would hide a bad one on &ldquo;no&rdquo;. Clear-cut and ambiguous cases are reported apart.</li>
       </ul>
 
@@ -2560,7 +2571,8 @@ $ python -m chatsched recover runs/t.jsonl --crash-after 6
       </p>
 
       <ul>
-        <li><strong>Genuinely ambiguous messages.</strong> <em>&ldquo;Actually, Q3&rdquo;</em> may be an amendment or a new question; a human would ask which. The §&nbsp;04 bias mitigates this; it does not solve it.</li>
+        <li><strong>Genuinely ambiguous messages.</strong> <em>&ldquo;Actually, Q3&rdquo;</em> may be an amendment or a new question; a human would ask which. The §&nbsp;04 bias mitigates this; it does not solve it. Across repeated eval runs the residual errors are not scattered &mdash; they land on the same three or four messages every time: <em>&ldquo;what about bonds?&rdquo;</em> (labelled <code>NEW</code>, read as <code>AMEND</code>), <em>&ldquo;is that still running?&rdquo;</em> (<code>IGNORE</code> &rarr; <code>REFERENCE</code>), <em>&ldquo;drop it&rdquo;</em> with two candidates (<code>CANCEL</code> &rarr; <code>IGNORE</code>), and Cara&rsquo;s repeat of Ana&rsquo;s question (<code>DUPLICATE</code> &rarr; <code>AMEND</code>). Three of the four are messages a human would also have to ask about; the fourth is a real miss and the one worth attacking first.</li>
+        <li><strong>Questions about the system are not a category.</strong> <em>&ldquo;Is that still running?&rdquo;</em>, <em>&ldquo;did you get that?&rdquo;</em>, <em>&ldquo;how long will this take?&rdquo;</em> are not portfolio questions and not chit-chat, but the taxonomy has no slot for them &mdash; so they are forced into <code>IGNORE</code> (the member is ignored) or <code>REFERENCE</code> (a worker is dispatched to answer a question about the scheduler). The Sequencer already knows the answer and needs no model to produce it. A <code>STATUS</code> relationship would be cheap and would remove a destructive failure mode; it is not built, and it is the change I would make next to §&nbsp;04.</li>
         <li><strong>The ready-but-undelivered window is handled, not eliminated.</strong> A change landing between &ldquo;answer ready&rdquo; and &ldquo;answer shipped&rdquo; now correctly discards the pending answer (§&nbsp;08), but the reader may still see an acknowledgement followed by a different answer than they were expecting. Correct, mildly disorienting.</li>
         <li><strong>Cross-chat pool starvation.</strong> One very busy chat can monopolise the workers. Per-chat caps exist; fair sharing does not (§&nbsp;12).</li>
         <li><strong>Dependency cycles from classifier error.</strong> Detected and broken (§&nbsp;08), at the cost of weaker ordering for that pair.</li>
@@ -2602,7 +2614,7 @@ $ python -m chatsched recover runs/t.jsonl --crash-after 6
               <tr>
                 <th scope="row">Classification quality</th>
                 <td><span class="mark part">measured</span></td>
-                <td>95% agreement, but that means roughly 1 message in 20 is misread. Tolerable because the errors are shaped to be recoverable &mdash; not because they are rare.</td>
+                <td>94&ndash;95% agreement across repeated runs &mdash; roughly 1 message in 20 is misread. Tolerable because the errors are shaped to be recoverable, not because they are rare. The residual misses land on the same handful of messages every run; they are listed in §&nbsp;13.</td>
               </tr>
               <tr>
                 <th scope="row">Surviving a restart</th>
@@ -2769,7 +2781,7 @@ $ python -m chatsched recover runs/t.jsonl --crash-after 6
           <h4>What is the weakest part?</h4>
           <p>
             The classifier, and it is not close. Everything downstream depends on it
-            relating messages to requests correctly, and at 95% agreement roughly one
+            relating messages to requests correctly, and at 94&ndash;95% agreement roughly one
             message in twenty is misread. That is why the errors are shaped rather than
             merely counted, why destructive readings ask instead of acting, and why
             every decision it makes is logged with its confidence and reasoning.
