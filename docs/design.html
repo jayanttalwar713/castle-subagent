@@ -1630,26 +1630,37 @@
       </p>
 
       <p>
-        <strong>Where it criticises this design, it is right.</strong> The post
-        argues for persistent agents over disposable ones, because a sub-agent that
-        forgets everything on completion forces redundant work on the follow-up.
-        Workers here are strictly disposable &mdash; one per request-version, no
-        memory. The follow-up case is patched rather than solved: a
-        <code>REFERENCE</code> gets its parent&rsquo;s answer pasted into its prompt,
-        which is the cheapest possible form of handover and loses everything the
-        parent knew but did not say.
+        <strong>Where it criticises this design, it was right &mdash; and it found
+        a bug.</strong> The post argues for persistent agents over disposable ones,
+        because a sub-agent that forgets everything on completion forces redundant
+        work on the follow-up. Workers here are strictly disposable, one per
+        request-version, no memory. Taking that seriously turned up something worse
+        than waste.
       </p>
 
       <p>
-        The post&rsquo;s other idea points at concrete work this design has not done.
-        It observes that agents specialise naturally &mdash; whoever looked at the
+        A <code>REFERENCE</code> is an answer <em>about</em> an answer. But a
+        follow-up admitted much later than its parent was being pinned to a
+        <strong>different data version</strong> &mdash; so &ldquo;and the second
+        biggest?&rdquo; could be computed against holdings the answer it explicitly
+        builds on never saw, and the two could disagree. That is the same
+        incoherence §&nbsp;08 already fixes <em>within</em> a request, missed
+        <em>across</em> a dependency edge. A follow-up now inherits its
+        parent&rsquo;s data version and its tool results, which closes the coherence
+        hole and removes the redundant lookup in the same move. Freshness is the
+        wrong instinct here: if you want current data you ask a new question, not a
+        follow-up.
+      </p>
+
+      <p>
+        What remains unaddressed is the broader version of the same idea. The post
+        observes that agents specialise naturally &mdash; whoever looked at the
         frontend first becomes the frontend expert &mdash; and that routing should
-        exploit that. Here, workers are interchangeable, which is wasteful in a way
-        the code can already see: a request is pinned to a data version (§&nbsp;08),
-        so a worker that has just answered a question about a member&rsquo;s holdings
-        is demonstrably cheaper for the <em>next</em> question about those holdings.
-        Nothing routes on that. It is the single clearest piece of future work the
-        post surfaces.
+        exploit it. Inheritance only helps along a dependency edge; two
+        <em>unrelated</em> questions about the same member at the same data version
+        still each pay for the lookup. The general fix is a tool-result cache keyed
+        by member, data version and call, which is a real design problem rather than
+        a small one, and is not built.
       </p>
 
       <div class="note">
@@ -1988,6 +1999,10 @@
               <tr>
                 <th scope="row">The ready-but-undelivered window</th>
                 <td>Between &ldquo;the worker finished&rdquo; and &ldquo;the ordering policy released the answer&rdquo;, a request has no worker but is not finished either. A change arriving in that window used to do two bad things at once: start a replacement worker while the old slot was already free (<strong>breaking the pool limit</strong>), and leave the now-obsolete answer sitting in the delivery buffer where a later release could still ship it. A change now always discards any undelivered answer, and always goes back through admission rather than starting a worker directly.</td>
+              </tr>
+              <tr>
+                <th scope="row">A follow-up answering against a different world</th>
+                <td>&ldquo;And the second biggest?&rdquo; builds explicitly on an earlier answer, but if admitted after the snapshot window rolled it would be pinned to newer data &mdash; so the two could disagree while one is derived from the other. A dependent request now inherits its parent&rsquo;s data version and tool results, and an invariant checks it. Found by taking the swarm post&rsquo;s critique of disposable agents seriously (§&nbsp;05).</td>
               </tr>
               <tr>
                 <th scope="row">Two things happening at the same instant</th>

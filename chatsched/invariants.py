@@ -227,6 +227,15 @@ def _snapshot_coherence(seq: Sequencer) -> list[Violation]:
     for req in seq.requests.values():
         if req.stage is not Stage.DELIVERED or req.as_of is None:
             continue
+        parent = seq.requests.get(req.origin_parent) if req.origin_parent else None
+        if parent is not None and parent.as_of and req.as_of != parent.as_of:
+            out.append(
+                Violation(
+                    "snapshot_coherence",
+                    f"{req.id} answers against {req.as_of} but builds on "
+                    f"{parent.id}, which answered against {parent.as_of}",
+                )
+            )
         if req.answered_as_of is not None and req.answered_as_of != req.as_of:
             out.append(
                 Violation(

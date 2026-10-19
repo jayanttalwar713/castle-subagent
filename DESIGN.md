@@ -353,22 +353,29 @@ never reads an answer, and no throughput ceiling because it never calls a model.
 So a star topology with a dumb hub avoids the bottleneck the post identifies,
 without needing a mesh to do it.
 
-**Where it criticises this design, it is right.** The post argues for persistent
-agents over disposable ones, because a sub-agent that forgets everything on
-completion forces redundant work on the follow-up. Workers here are strictly
-disposable — one per request-version, no memory. The follow-up case is patched
-rather than solved: a `REFERENCE` gets its parent's answer pasted into its
-prompt, which is the cheapest possible form of handover and loses everything the
-parent knew but did not say.
+**Where it criticises this design, it was right — and it found a bug.** The post
+argues for persistent agents over disposable ones, because a sub-agent that
+forgets everything on completion forces redundant work on the follow-up. Workers
+here are strictly disposable, one per request-version, no memory. Taking that
+seriously turned up something worse than waste.
 
-The post's other idea points at concrete work this design has not done. It
+A `REFERENCE` is an answer *about* an answer. But a follow-up admitted much
+later than its parent was being pinned to a **different data version** — so
+"and the second biggest?" could be computed against holdings the answer it
+explicitly builds on never saw, and the two could disagree. That is the same
+incoherence §8 already fixes *within* a request, missed *across* a dependency
+edge. A follow-up now inherits its parent's data version and its tool results,
+which fixes the coherence hole and removes the redundant lookup in the same
+move. Freshness is the wrong instinct here: if you want current data you ask a
+new question, not a follow-up.
+
+What remains unaddressed is the broader version of the same idea. The post
 observes that agents specialise naturally — whoever looked at the frontend first
-becomes the frontend expert — and that routing should exploit that. Here workers
-are interchangeable, which is wasteful in a way the code can already see: a
-request is pinned to a data version (§8), so a worker that has just answered a
-question about a member's holdings is demonstrably cheaper for the *next*
-question about those holdings. Nothing routes on that. It is the single clearest
-piece of future work the post surfaces.
+becomes the frontend expert — and that routing should exploit it. Inheritance
+only helps along a dependency edge; two *unrelated* questions about the same
+member at the same data version still each pay for the lookup. The general fix
+is a tool-result cache keyed by member, data version and call, which is a real
+design problem rather than a small one, and is not built.
 
 > One honest caveat on scale. The post's mesh argument is about swarms of ten
 > thousand agents; this system runs a pool of three against one chat. At that
@@ -538,6 +545,14 @@ close together share a pin, so concurrent answers agree. The worker reports
 back which version it actually used, and an invariant checks it — because a
 worker silently dropping a field the Sequencer sends it is a mistake this
 codebase has already made once, with retained tool results.
+
+**A follow-up answering against a different world than its parent.** "And the
+second biggest?" builds explicitly on an earlier answer, but if it is admitted
+after the snapshot window has rolled it would be pinned to newer data — so the
+two answers could disagree while one is derived from the other. *Resolution:* a
+dependent request inherits its parent's data version and tool results, and an
+invariant checks it. Found by taking the swarm post's critique of disposable
+agents seriously (§5).
 
 **Two things happening at the same instant.** A result arriving and a change
 arriving can land at the same moment. *Resolution:* the Sequencer handles one

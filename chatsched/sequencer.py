@@ -425,6 +425,21 @@ class Sequencer:
                 # parent has answered. Its spec is materialised here, at
                 # admission — not at arrival (§8).
                 req.spec = f"{req.spec}\n\n(in reference to: {parent.answer})"
+
+                # It also inherits the parent's world. A follow-up is an
+                # answer *about* an answer: "and the second biggest?" has to
+                # be computed against the holdings its parent saw, or the two
+                # can disagree while one is explicitly built on the other.
+                # Freshness is the wrong instinct here — if you want current
+                # data you ask a new question, not a follow-up.
+                #
+                # Inheriting the tool results too is the same decision read
+                # as cost rather than correctness: the lookup has been paid
+                # for, at exactly the version this request needs.
+                if req.as_of is None:
+                    req.as_of = parent.as_of
+                if not req.tool_results:
+                    req.tool_results = list(parent.tool_results)
                 req.depends_on = None
         if req.as_of is None:
             # Pinned once. Later versions of this question re-run against the

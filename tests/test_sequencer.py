@@ -680,3 +680,54 @@ def test_a_worker_that_ignores_the_pin_is_caught():
             transcript.record(cmd, 5.0)
     violations = invariants.check(h.seq, transcript, h.policy, h.pool_size)
     assert any(v.invariant == "snapshot_coherence" for v in violations), violations
+
+
+def test_a_follow_up_inherits_its_parents_world():
+    """Prompted by the swarm post the brief recommends: disposable workers
+    force redundant work on follow-ups. Here that was not only waste — it was
+    incoherence. "And the second biggest?" is an answer *about* an answer, so
+    computing it against different holdings than its parent saw lets the two
+    disagree while one is explicitly built on the other.
+    """
+    h = Harness()
+    parent = h.ask("is NVDA my biggest position?", author="ben", at=0)
+    h.advance_to(parent, Stage.TOOL_CALL, at=1)
+    h.advance_to(parent, Stage.DRAFTING, at=2)   # carries tool results back
+    h.finish(parent, at=3)
+
+    before = set(h.seq.requests)
+    # Long after the snapshot window would have rolled over.
+    h.send(msg("and the second biggest?", author="ben", at=5_000,
+               rel=Relationship.REFERENCE, target=parent))
+    child = next(iter(set(h.seq.requests) - before))
+
+    assert h.seq.requests[child].as_of == h.seq.requests[parent].as_of
+    # And the lookup is not paid for twice, at exactly the version it needs.
+    assert h.dispatches(child)[0].retained_tool_results == ("tool-result",)
+
+
+def test_an_independent_question_asked_later_gets_fresh_data():
+    """Inheritance is for follow-ups, not a licence to serve stale numbers.
+    A new question asked much later must see current holdings."""
+    h = Harness()
+    early = h.ask("first question", author="ana", at=0)
+    later = h.ask("unrelated question", author="ana", at=5_000)
+    assert h.seq.requests[early].as_of != h.seq.requests[later].as_of
+
+
+def test_a_follow_up_answering_against_the_wrong_world_is_caught():
+    from chatsched import invariants
+    from chatsched.delivery import Transcript
+
+    h = Harness()
+    parent = h.ask("parent", author="ben", at=0)
+    h.finish(parent, at=3)
+    before = set(h.seq.requests)
+    h.send(msg("follow-up", author="ben", at=4, rel=Relationship.REFERENCE, target=parent))
+    child = next(iter(set(h.seq.requests) - before))
+
+    h.seq.requests[child].as_of = "some-other-version"   # simulate the old bug
+    h.finish(child, at=8)
+
+    violations = invariants.check(h.seq, Transcript(), h.policy, h.pool_size)
+    assert any(v.invariant == "snapshot_coherence" for v in violations), violations
