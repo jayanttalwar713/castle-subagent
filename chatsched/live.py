@@ -148,12 +148,17 @@ async def _main(
 
     async def _ingest() -> None:
         """Replay the chat against a real clock, classifying as we go."""
+        # What has already been said, in order. Triage needs it to tell a
+        # reply to another member from an instruction to the agent — a bare
+        # "no" is almost always the former (§4). Bounded inside aclassify.
+        said: list[InboundMessage] = []
         for msg in messages:
             delay = msg.at - now()
             if delay > 0:
                 await asyncio.sleep(delay)
             live = seq.live_view()
-            decision = await triage.aclassify(msg, live)
+            decision = await triage.aclassify(msg, live, said)
+            said.append(msg)
             print(
                 f"[{now():6.1f}s] ← {msg.author:<14} {'':17} {msg.text}",
                 flush=True,

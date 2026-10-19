@@ -236,6 +236,61 @@ does it get, and may the answer ship?" is not.
 *(Two further relationships — `MERGE` and `SPLIT` — are designed in §12 and
 deliberately not built. The reasoning is there.)*
 
+### What the classifier is shown
+
+Triage sees two things: the **live request set** — every request still in
+flight, with its stage, asker, member and question — and the **recent chat**,
+bounded to the last six messages.
+
+The second was missing for most of this project's life, and the gap was not
+obvious. The classifier's hardest job is telling a message aimed at the agent
+from one aimed at another person in the room, and the request set cannot
+settle that. Consider Ana typing:
+
+```
+ben: ana are you joining the 3pm call?
+ana: no
+```
+
+`no` is an answer to Ben. Without the preceding line it is a bare word next to
+a live Taiwan request, and the honest reading is a coin flip — in five samples
+the classifier returned `IGNORE`, `NEW` *and* `CANCEL`, and `CANCEL` would
+have killed Ana's question. With the line, it answers `IGNORE` five times out
+of five.
+
+The eval set's own note on that case read *"almost certainly answering someone
+else in the chat"* — a label whose justification rested on evidence the
+classifier was never given. That is the kind of mistake that survives a long
+time, because every individual component looks reasonable.
+
+Supplying it is the single largest improvement measured in this project:
+
+| | without chat | with chat |
+|---|---|---|
+| Agreement with the labels | 143/152 (94%) | **145/152 (95%)** |
+| On the genuinely ambiguous cases | 49/56 | **52/56** |
+| Spread across identical passes | 92% – 97% | **95% – 97%** |
+| `IGNORE` precision / recall | 0.97 / 0.95 | **1.00 / 1.00** |
+| `CANCEL` precision / recall | 1.00 / 0.95 | **1.00 / 1.00** |
+| `REFERENCE` precision / recall | 0.89 / 1.00 | **1.00 / 1.00** |
+
+The headline number barely moves, and it is the least interesting column. What
+changed is the **shape**: the entire class of "two people talking to each
+other" errors is gone, `IGNORE` and `CANCEL` are exact, and the errors that
+remain are `NEW`→`AMEND` and `DUPLICATE`→`NEW` — under-merging, the
+recoverable direction.
+
+The result that matters most is the third row. §10 found the run-to-run
+variance large enough to swamp the confidence mechanism meant to control it.
+Supplying the missing evidence narrowed it, and two independent four-pass runs
+afterwards produced *identical* confusion matrices. The instability was never
+really in the model; it was in asking a question that the available evidence
+could not answer.
+
+The window is capped at six messages for the reason §8 gives: the live request
+set is bounded, so this must be too, or a chat that runs all day grows its own
+classification cost without limit.
+
 ### Classifier errors must be asymmetric by design
 
 > **Classifier** — a model whose job is to put a thing into one of a fixed set
@@ -270,11 +325,18 @@ result is a negative one about this design:
 > three of them while adding ten to twelve redundant answers, and 0.95 buys
 > the rest by rejecting roughly a quarter of all predictions.
 
-Worse than the exchange rate is the stability. Two identical 152-case runs
+Worse than the exchange rate was the stability. Two identical 152-case runs
 gave 7 destroyed questions and 4 — **the run-to-run variance on the same
-input is as large as the effect the threshold is supposed to produce.** A
-knob you cannot distinguish from noise is not a safety mechanism, whatever
-its average behaviour.
+input was as large as the effect the threshold was supposed to produce.** A
+knob you cannot distinguish from noise is not a safety mechanism, whatever its
+average behaviour.
+
+That finding is what led to the chat context above, and it is worth being
+precise about what changed. Supplying the missing evidence narrowed the spread
+to 4 destroyed on both runs. The threshold did not become useful — the
+confidence bands still overlap — but the *reason* it looked useless turned out
+to be partly fixable, and fixing it was worth more than any tuning of the knob
+would have been. **The instability was in the question, not the model.**
 
 So a threshold cannot buy this asymmetry, because legitimate amendments and
 mistaken ones arrive at indistinguishable confidence. Two things replace it:
@@ -753,10 +815,10 @@ matrix, and the thing §4 actually claims: **which direction the errors go.**
 Two measurement details matter more than the headline number:
 
 - **It repeats.** The classifier is not deterministic; identical passes over
-  the same 38 cases score between 92% and 97%. A single pass is an anecdote,
+  the same 38 cases score between 95% and 97%. A single pass is an anecdote,
   so `--repeats` runs the whole set several times and reports the spread. The
-  variance is not a footnote — §4 shows it is large enough to swamp the
-  mechanism it was measuring.
+  variance is not a footnote: it was 92–97% before §4's chat context, which is
+  how the missing input was found in the first place.
 - **It separates the hard cases.** A good score on "never mind the Taiwan one"
   hides a bad one on "no". Clear-cut and ambiguous cases are reported apart.
 
@@ -934,17 +996,17 @@ real system.
 
 - **Genuinely ambiguous messages.** *"Actually, Q3"* may be an amendment or a new question; a human would ask which. The §4 bias mitigates this; it does not solve it. Across repeated eval runs the residual errors are not scattered — they land on the same three or four messages every time:
 
-  | Message | Labelled | Usually predicted |
+  | Message | Labelled | Predicted |
   |---|---|---|
   | *"what about bonds?"* | `NEW` | `AMEND` |
-  | *"is that still running?"* | `IGNORE` | `REFERENCE` |
-  | *"drop it"* (two candidates, one running) | `CANCEL` | `IGNORE` |
-  | *"What's my exposure to Taiwan?"* (Cara, after Ana) | `DUPLICATE` | `AMEND` |
+  | *"What's my exposure to Taiwan?"* (Cara, after Ana) | `DUPLICATE` | `NEW` |
 
-  Three of the four are messages a human would also have to ask about. The
-  fourth is a real miss, and the one worth attacking first.
+  Two others — *"is that still running?"* and *"drop it"* — were on this list
+  until the classifier was given the recent chat (§4), which fixed both. What
+  remains is one genuinely ambiguous message and one case of under-merging,
+  which is the recoverable direction.
 
-- **Questions about the system are not a category.** *"Is that still running?"*, *"did you get that?"*, *"how long will this take?"* are not portfolio questions and not chit-chat, but the taxonomy has no slot for them — so they are forced into `IGNORE` (the member is ignored) or `REFERENCE` (a worker is dispatched to answer a question about the scheduler). The Sequencer already knows the answer and needs no model to produce it. A `STATUS` relationship would be cheap and would remove a destructive failure mode; it is not built, and it is the change I would make next to §4.
+- **Questions about the system are not a category.** *"Is that still running?"*, *"did you get that?"*, *"how long will this take?"* are not portfolio questions and not chit-chat, and the taxonomy has no slot for them. With the chat context of §4 they now land on `IGNORE` reliably, which is the safe reading — no worker is dispatched to answer a question about the scheduler — but the member still gets nothing back. The Sequencer holds the answer and needs no model to produce it. A `STATUS` relationship would close this; it is not built, and it is the change I would make next to §4.
 - **The ready-but-undelivered window is handled, not eliminated.** A change landing between "answer ready" and "answer shipped" now correctly discards the pending answer (§8), but the reader may still see an acknowledgement followed by a different answer than they were expecting. Correct, mildly disorienting.
 - **Cross-chat pool starvation.** One very busy chat can monopolise the workers. Per-chat caps exist; fair sharing does not (§12).
 - **Dependency cycles from classifier error.** Detected and broken (§8), at the cost of weaker ordering for that pair.
@@ -967,7 +1029,7 @@ is which seems more useful than a verdict.
 |---|---|---|
 | **Scheduling correctness** | ready | Nine invariants, 15,000 randomised chats per soak run, every relationship and policy exercised. |
 | **Behaviour under change** | ready | The §7 matrix is implemented and tested, including the cases that arrive too late. |
-| **Classification quality** | measured | 94–95% agreement across repeated runs — roughly 1 message in 20 is misread. Tolerable because the errors are *shaped* to be recoverable, not because they are rare. The residual misses are concentrated on a handful of genuinely ambiguous messages, listed in §13. |
+| **Classification quality** | measured | 95% agreement across repeated runs — roughly 1 message in 20 is misread. Tolerable because the errors are *shaped* to be recoverable, not because they are rare: `IGNORE` and `CANCEL` are exact, and what remains is under-merging. The residual misses are listed in §13. |
 | **Surviving a restart** | ready | Every event is written to an append-only log before it is handled, and replaying the log rebuilds the chat. Tested by killing the run after *every* event in every scenario, recovering, and asserting the final state is identical. |
 | **Sustained load** | missing | No backpressure. If messages arrive faster than the pool drains, the queue grows without limit and nobody is told. |
 | **Many chats at once** | missing | One Sequencer per chat, but nothing supervises them. A single busy chat can take the whole worker pool. |

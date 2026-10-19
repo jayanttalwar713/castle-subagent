@@ -35,7 +35,7 @@ class FakeTriage:
         self.labels: dict[str, str] = {}
         self.seen: list[str] = []
 
-    async def aclassify(self, msg: InboundMessage, live_view):
+    async def aclassify(self, msg: InboundMessage, live_view, recent=()):
         self.seen.append(msg.text)
         rel = Relationship((msg.relationship or "NEW").upper())
         target = None
@@ -204,7 +204,7 @@ async def test_triage_failure_exits_nonzero_instead_of_claiming_success(monkeypa
     system could produce."""
 
     class ExplodingTriage(FakeTriage):
-        async def aclassify(self, msg, live_view):
+        async def aclassify(self, msg, live_view, recent=()):
             raise RuntimeError("401 invalid x-api-key")
 
     monkeypatch.setattr(llm_module, "LLMTriage", lambda *a, **k: ExplodingTriage())

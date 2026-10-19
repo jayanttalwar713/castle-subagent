@@ -1432,6 +1432,86 @@
         </p>
       </div>
 
+      <h3>What the classifier is shown</h3>
+
+      <p>
+        Triage sees two things: the <strong>live request set</strong> &mdash; every
+        request still in flight, with its stage, asker, member and question &mdash; and
+        the <strong>recent chat</strong>, bounded to the last six messages.
+      </p>
+
+      <p>
+        The second was missing for most of this project&rsquo;s life, and the gap was not
+        obvious. The classifier&rsquo;s hardest job is telling a message aimed at the
+        agent from one aimed at another person in the room, and the request set cannot
+        settle that. Consider Ana typing:
+      </p>
+
+      <div class="tree"><span class="q">ben: ana are you joining the 3pm call?</span>
+<span class="q">ana: no</span></div>
+
+      <p>
+        <code>no</code> is an answer to Ben. Without the preceding line it is a bare word
+        next to a live Taiwan request, and the honest reading is a coin flip &mdash; in
+        five samples the classifier returned <code>IGNORE</code>, <code>NEW</code>
+        <em>and</em> <code>CANCEL</code>, and <code>CANCEL</code> would have killed
+        Ana&rsquo;s question. With the line, it answers <code>IGNORE</code> five times
+        out of five.
+      </p>
+
+      <div class="note">
+        The eval set&rsquo;s own note on that case read <em>&ldquo;almost certainly
+        answering someone else in the chat&rdquo;</em> &mdash; a label whose
+        justification rested on evidence the classifier was never given. That is the kind
+        of mistake that survives a long time, because every individual component looks
+        reasonable.
+      </div>
+
+      <div class="wide">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col"></th><th scope="col">without chat</th><th scope="col">with chat</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">Agreement with the labels</th><td>143/152 (94%)</td><td><strong>145/152 (95%)</strong></td></tr>
+              <tr><th scope="row">On the genuinely ambiguous cases</th><td>49/56</td><td><strong>52/56</strong></td></tr>
+              <tr><th scope="row">Spread across identical passes</th><td>92% &ndash; 97%</td><td><strong>95% &ndash; 97%</strong></td></tr>
+              <tr><th scope="row">IGNORE precision / recall</th><td>0.97 / 0.95</td><td><strong>1.00 / 1.00</strong></td></tr>
+              <tr><th scope="row">CANCEL precision / recall</th><td>1.00 / 0.95</td><td><strong>1.00 / 1.00</strong></td></tr>
+              <tr><th scope="row">REFERENCE precision / recall</th><td>0.89 / 1.00</td><td><strong>1.00 / 1.00</strong></td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="caption">
+          <b>The headline number barely moves, and it is the least interesting column.</b>
+          What changed is the shape.
+        </p>
+      </div>
+
+      <p>
+        The entire class of &ldquo;two people talking to each other&rdquo; errors is gone,
+        <code>IGNORE</code> and <code>CANCEL</code> are exact, and the errors that remain
+        are <code>NEW</code>&rarr;<code>AMEND</code> and
+        <code>DUPLICATE</code>&rarr;<code>NEW</code> &mdash; under-merging, the recoverable
+        direction.
+      </p>
+
+      <p>
+        The result that matters most is the third row. §&nbsp;10 found the run-to-run
+        variance large enough to swamp the confidence mechanism meant to control it.
+        Supplying the missing evidence narrowed it, and two independent four-pass runs
+        afterwards produced <em>identical</em> confusion matrices.
+        <strong>The instability was never really in the model; it was in asking a question
+        that the available evidence could not answer.</strong>
+      </p>
+
+      <p>
+        The window is capped at six messages for the reason §&nbsp;08 gives: the live
+        request set is bounded, so this must be too, or a chat that runs all day grows its
+        own classification cost without limit.
+      </p>
+
       <h3>Classifier errors must be asymmetric by design</h3>
 
       <div class="note">
@@ -1524,11 +1604,14 @@
       </div>
 
       <div class="note">
-        <strong>The variance is the real finding.</strong> Two identical 152-case runs
-        gave 7 destroyed questions and 4. The run-to-run spread on the same input is as
-        large as the effect the threshold is supposed to produce &mdash; so a knob you
-        cannot distinguish from noise is not a safety mechanism, whatever its average
-        behaviour.
+        <strong>The variance was the real finding.</strong> Two identical 152-case runs
+        gave 7 destroyed questions and 4 &mdash; a spread as large as the effect the
+        threshold was supposed to produce. That is what led to the chat context above.
+        Supplying the missing evidence narrowed it to 4 on both runs. The threshold did
+        not become useful (the bands still overlap), but the <em>reason</em> it looked
+        useless turned out to be partly fixable, and fixing it was worth more than any
+        tuning of the knob. <strong>The instability was in the question, not the
+        model.</strong>
       </div>
 
       <p>
@@ -2393,7 +2476,7 @@
       <p>Two measurement details matter more than the headline number:</p>
 
       <ul>
-        <li><strong>It repeats.</strong> The classifier is not deterministic &mdash; identical passes score between 92% and 97%. A single pass is an anecdote, so <code>--repeats</code> runs the whole set several times and reports the spread. The variance is not a footnote: §&nbsp;04 shows it is large enough to swamp the mechanism it was measuring.</li>
+        <li><strong>It repeats.</strong> The classifier is not deterministic &mdash; identical passes score between 95% and 97%. A single pass is an anecdote, so <code>--repeats</code> runs the whole set several times and reports the spread. The variance is not a footnote: it was 92&ndash;97% before §&nbsp;04's chat context, which is how the missing input was found.</li>
         <li><strong>It separates the hard cases.</strong> A good score on &ldquo;never mind the Taiwan one&rdquo; would hide a bad one on &ldquo;no&rdquo;. Clear-cut and ambiguous cases are reported apart.</li>
       </ul>
 
@@ -2621,8 +2704,8 @@ $ python -m chatsched recover runs/t.jsonl --crash-after 6
       </p>
 
       <ul>
-        <li><strong>Genuinely ambiguous messages.</strong> <em>&ldquo;Actually, Q3&rdquo;</em> may be an amendment or a new question; a human would ask which. The §&nbsp;04 bias mitigates this; it does not solve it. Across repeated eval runs the residual errors are not scattered &mdash; they land on the same three or four messages every time: <em>&ldquo;what about bonds?&rdquo;</em> (labelled <code>NEW</code>, read as <code>AMEND</code>), <em>&ldquo;is that still running?&rdquo;</em> (<code>IGNORE</code> &rarr; <code>REFERENCE</code>), <em>&ldquo;drop it&rdquo;</em> with two candidates (<code>CANCEL</code> &rarr; <code>IGNORE</code>), and Cara&rsquo;s repeat of Ana&rsquo;s question (<code>DUPLICATE</code> &rarr; <code>AMEND</code>). Three of the four are messages a human would also have to ask about; the fourth is a real miss and the one worth attacking first.</li>
-        <li><strong>Questions about the system are not a category.</strong> <em>&ldquo;Is that still running?&rdquo;</em>, <em>&ldquo;did you get that?&rdquo;</em>, <em>&ldquo;how long will this take?&rdquo;</em> are not portfolio questions and not chit-chat, but the taxonomy has no slot for them &mdash; so they are forced into <code>IGNORE</code> (the member is ignored) or <code>REFERENCE</code> (a worker is dispatched to answer a question about the scheduler). The Sequencer already knows the answer and needs no model to produce it. A <code>STATUS</code> relationship would be cheap and would remove a destructive failure mode; it is not built, and it is the change I would make next to §&nbsp;04.</li>
+        <li><strong>Genuinely ambiguous messages.</strong> <em>&ldquo;Actually, Q3&rdquo;</em> may be an amendment or a new question; a human would ask which. The §&nbsp;04 bias mitigates this; it does not solve it. Across repeated eval runs the residual errors are not scattered &mdash; they land on the same messages every time. Two of them &mdash; <em>&ldquo;is that still running?&rdquo;</em> and <em>&ldquo;drop it&rdquo;</em> &mdash; were fixed by giving the classifier the recent chat (§&nbsp;04). What remains is <em>&ldquo;what about bonds?&rdquo;</em> (labelled <code>NEW</code>, read as <code>AMEND</code>), which is genuinely ambiguous, and Cara&rsquo;s repeat of Ana&rsquo;s question (<code>DUPLICATE</code> &rarr; <code>NEW</code>), which is under-merging &mdash; the recoverable direction.</li>
+        <li><strong>Questions about the system are not a category.</strong> <em>&ldquo;Is that still running?&rdquo;</em>, <em>&ldquo;did you get that?&rdquo;</em>, <em>&ldquo;how long will this take?&rdquo;</em> are not portfolio questions and not chit-chat, but the taxonomy has no slot for them &mdash; with §&nbsp;04's chat context they now land on <code>IGNORE</code> reliably, which is the safe reading &mdash; no worker is dispatched to answer a question about the scheduler &mdash; but the member still gets nothing back. The Sequencer holds the answer and needs no model to produce it. A <code>STATUS</code> relationship would close this; it is not built, and it is the change I would make next to §&nbsp;04.</li>
         <li><strong>The ready-but-undelivered window is handled, not eliminated.</strong> A change landing between &ldquo;answer ready&rdquo; and &ldquo;answer shipped&rdquo; now correctly discards the pending answer (§&nbsp;08), but the reader may still see an acknowledgement followed by a different answer than they were expecting. Correct, mildly disorienting.</li>
         <li><strong>Cross-chat pool starvation.</strong> One very busy chat can monopolise the workers. Per-chat caps exist; fair sharing does not (§&nbsp;12).</li>
         <li><strong>Dependency cycles from classifier error.</strong> Detected and broken (§&nbsp;08), at the cost of weaker ordering for that pair.</li>
@@ -2664,7 +2747,7 @@ $ python -m chatsched recover runs/t.jsonl --crash-after 6
               <tr>
                 <th scope="row">Classification quality</th>
                 <td><span class="mark part">measured</span></td>
-                <td>94&ndash;95% agreement across repeated runs &mdash; roughly 1 message in 20 is misread. Tolerable because the errors are shaped to be recoverable, not because they are rare. The residual misses land on the same handful of messages every run; they are listed in §&nbsp;13.</td>
+                <td>95% agreement across repeated runs &mdash; roughly 1 message in 20 is misread. Tolerable because the errors are shaped to be recoverable, not because they are rare: <code>IGNORE</code> and <code>CANCEL</code> are exact, and what remains is under-merging. The residual misses are listed in §&nbsp;13.</td>
               </tr>
               <tr>
                 <th scope="row">Surviving a restart</th>
@@ -2831,7 +2914,7 @@ $ python -m chatsched recover runs/t.jsonl --crash-after 6
           <h4>What is the weakest part?</h4>
           <p>
             The classifier, and it is not close. Everything downstream depends on it
-            relating messages to requests correctly, and at 94&ndash;95% agreement roughly one
+            relating messages to requests correctly, and at 95% agreement roughly one
             message in twenty is misread. That is why the errors are shaped rather than
             merely counted, why destructive readings ask instead of acting, and why
             every decision it makes is logged with its confidence and reasoning.

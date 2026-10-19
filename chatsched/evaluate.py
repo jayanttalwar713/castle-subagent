@@ -35,6 +35,10 @@ CONCURRENCY = 6
 @dataclass
 class Case:
     context: list[dict]
+    #: The chat that preceded this message. Triage needs it to tell a reply to
+    #: another member from an instruction to the agent (§4). Stored on the
+    #: context rather than the case, so it cannot be tuned per label.
+    chat: list[str]
     author: str
     member: str | None
     text: str
@@ -237,9 +241,11 @@ class Report:
 def load_cases(path: Path | None = None) -> list[Case]:
     raw = json.loads((path or FIXTURES / "triage_eval.json").read_text())
     contexts = raw["contexts"]
+    chats = raw.get("chat", {})
     return [
         Case(
             context=contexts[c["context"]],
+            chat=list(chats.get(c["context"], ())),
             author=c["author"],
             member=c.get("member"),
             text=c["text"],
@@ -267,7 +273,17 @@ async def run_eval(cases: list[Case], triage=None, repeats: int = 1) -> Report:
                 at=float(index),
                 member=case.member,
             )
-            decision = await triage.aclassify(message, case.context)
+            recent = [
+                InboundMessage(
+                    msg_id=f"eval-{index}-{i}",
+                    author=line.split(":", 1)[0],
+                    text=line.split(":", 1)[1].strip(),
+                    at=float(index) - len(case.chat) + i,
+                )
+                for i, line in enumerate(case.chat)
+                if ":" in line
+            ]
+            decision = await triage.aclassify(message, case.context, recent)
         record = triage.decisions[-1]
         return Outcome(
             case=case,

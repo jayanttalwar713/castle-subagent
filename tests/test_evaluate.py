@@ -19,7 +19,7 @@ from chatsched.model import Relationship
 
 
 def case(expected: Relationship, hard: bool = False) -> Case:
-    return Case(context=[], author="ana", member=None, text="…",
+    return Case(context=[], chat=[], author="ana", member=None, text="…",
                 expected=expected, expected_target=None, hard=hard, note="")
 
 
@@ -226,7 +226,7 @@ def _ctx(member):
 
 
 def _dup_outcome(target_member, asker_member, target="r1"):
-    c = Case(context=_ctx(target_member), author="dev", member=asker_member,
+    c = Case(context=_ctx(target_member), chat=[], author="dev", member=asker_member,
              text="same for me please", expected=Relationship.NEW,
              expected_target=None, hard=True, note="")
     return Outcome(case=c, predicted=Relationship.DUPLICATE,

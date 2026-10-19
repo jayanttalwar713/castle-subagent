@@ -43,6 +43,18 @@ class Triage(Protocol):
     ) -> Classified: ...
 
 
+#: The async form `LLMTriage` implements, kept separate because the scripted
+#: triage is synchronous and needs no chat history — it reads its answers from
+#: a fixture. Only a model needs to be told what was said before.
+class AsyncTriage(Protocol):
+    async def aclassify(
+        self,
+        msg: InboundMessage,
+        live: list[dict],
+        recent: "list[InboundMessage]" = ...,
+    ) -> Classified: ...
+
+
 #: Below this, a destructive relationship degrades to NEW. A NEW misclassified
 #: as AMEND destroys a request silently; the reverse merely produces a
 #: redundant answer. Only one of those is recoverable (DESIGN.md §4).

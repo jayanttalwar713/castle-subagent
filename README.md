@@ -88,7 +88,7 @@ Two further columns are correctness checks that must read zero — `stale` and
 ## Correctness
 
 ```console
-$ python -m pytest                 # 251 tests, 90% coverage
+$ python -m pytest                 # 259 tests, 90% coverage
 $ HYPOTHESIS_PROFILE=soak pytest tests/test_fuzz.py   # 5,000 random chats
 ```
 

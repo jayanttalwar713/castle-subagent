@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from typing import Sequence
 
 from anthropic import AsyncAnthropic
 
@@ -65,6 +66,12 @@ Relationships:
   IGNORE     Not a request at all. Thanks, acknowledgements, reactions, jokes,
              two people talking to each other rather than to you. Most traffic
              in a busy group chat is this.
+
+You are shown the recent chat as well as the live requests. Use it. A bare \
+"no", "ok" or "wait" is usually a reply to the person who spoke last, not an \
+instruction to you — and the only way to tell is to read what came before it. \
+If the previous line is somebody asking a human question, a short reply is \
+almost certainly answering them.
 
 For AMEND, set rewritten_question to the question as it NOW stands, resolved. You have read both the original and the change, so state the result rather than leaving them to be concatenated: "How did my book do in Q2?" plus "sorry I meant Q3" becomes "How did my book do in Q3?". Leave it empty for every other relationship.
 
@@ -140,8 +147,26 @@ class LLMTriage:
         #: black box. `--explain` prints this.
         self.decisions: list[dict] = []
 
-    async def aclassify(self, msg: InboundMessage, live: list[dict]) -> Classified:
-        prompt = (
+    #: How many preceding chat lines the classifier is shown. Bounded so the
+    #: triage prompt stays O(1) in the age of the chat (§8) — the live request
+    #: set is already bounded, and this must be too or a long-running chat
+    #: would grow its own classification cost without limit.
+    RECENT_WINDOW = 6
+
+    async def aclassify(
+        self,
+        msg: InboundMessage,
+        live: list[dict],
+        recent: Sequence[InboundMessage] = (),
+    ) -> Classified:
+        window = list(recent)[-self.RECENT_WINDOW:]
+        chat = (
+            "Recent chat (oldest first; the last line is the message to classify):\n"
+            + "\n".join(f"  {m.author}: {m.text}" for m in window)
+            + f"\n  {msg.author}: {msg.text}\n\n"
+        ) if window else ""
+
+        prompt = chat + (
             f"Live requests (id · stage · asker(s) · question):\n"
             + (
                 "\n".join(
