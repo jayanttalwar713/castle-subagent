@@ -106,6 +106,7 @@ class Sequencer:
                 "id": r.id,
                 "spec": r.spec,
                 "askers": list(r.askers),
+                "member": r.member,
                 "stage": r.stage.value,
                 "answer": (r.answer or "")[:160] if r.stage is Stage.DELIVERED else None,
             }
@@ -223,6 +224,11 @@ class Sequencer:
 
     def _duplicate(self, ev: Classified, target: Request) -> list[Command]:
         if target.stage is Stage.DROPPED:
+            return self._new_request(ev)
+        if ev.member != target.member:
+            # Same words, different portfolio — so not the same question.
+            # Fanning the existing answer out here would both answer the wrong
+            # question and show one member another member's positions (§11).
             return self._new_request(ev)
         if ev.author not in target.askers:
             target.askers.append(ev.author)
@@ -423,6 +429,7 @@ class Sequencer:
             spec=ev.text,
             asked_text=ev.text,
             askers=[ev.author],
+            member=ev.member,
             arrival_seq=self._seq,
             created_at=ev.at,
             depends_on=depends_on,

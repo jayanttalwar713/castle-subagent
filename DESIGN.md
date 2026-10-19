@@ -566,7 +566,7 @@ zero.
 
 ### Scenario suite
 
-Seven replayable fixtures, each targeting one failure mode. Every scenario runs
+Eight replayable fixtures, each targeting one failure mode. Every scenario runs
 under all three policies, with all invariants asserted.
 
 | Scenario | What it targets |
@@ -577,6 +577,7 @@ under all three policies, with all invariants asserted.
 | Amendment lands mid-tool-call | A change at the worst possible moment |
 | Cancel after the draft is written | Wasted-spend accounting |
 | Premise replaced mid-flight, then again after delivery | Throwing work away, and the replacement notice |
+| Two members, same words | Deduplication must not cross a portfolio boundary |
 | Amendment during the final draft | The stop-signal race; the version-check demo |
 
 Tools are mocked with **controllable latency** — the simulator decides exactly
@@ -598,12 +599,13 @@ Stated as assumptions because several are load-bearing, and a reader should be
 able to reject one and immediately know what breaks.
 
 1. **Chats are independent.** No ordering requirement across chats. *(If false: the Sequencer stops being per-chat, and the no-collisions property goes with it.)*
-2. **Within a chat, the only real ordering requirement is dependency.** The thesis of §3, and the most important assumption here. *(If false — say a compliance rule demands literal arrival order — `STRICT_FIFO` already exists as a policy and we pay the blocking knowingly.)*
-3. **Tool calls cannot be interrupted once started.** Conservative. *(If false, cancellation gets cheaper and the `TOOL_CALL` column of §7 simplifies.)*
-4. **Model calls can be interrupted.** True over HTTP — though §7b exists precisely because interruption can still lose the race.
-5. **The classifier is fallible,** and its errors are made asymmetric by design (§4).
-6. **Answer volume per chat is low enough that acknowledgements are not spam.** *(If false, acknowledgements collapse into a single edited status message.)*
-7. **Single process.** The event log is the boundary where splitting across machines would go.
+2. **Who the chat is for is explicit, not inferred.** The brief says "a group chat" without saying whose portfolio is being discussed, and the answer changes the design. If everyone in the chat shares one portfolio — a household, an investment club, a member and their advisor — then two people asking the same question really is one piece of work. If each person has their own portfolio, it is not: identical words are different questions, and answering both with one answer would disclose one member's positions to another. Rather than guess, each request carries the member it is about; `DUPLICATE` requires a match, and a chat that sets no member is treated as having one shared context. *(If this were left implicit, the deduplication in §4 would be a data-disclosure bug rather than an optimisation.)*
+3. **Within a chat, the only real ordering requirement is dependency.** The thesis of §3, and the most important assumption here. *(If false — say a compliance rule demands literal arrival order — `STRICT_FIFO` already exists as a policy and we pay the blocking knowingly.)*
+4. **Tool calls cannot be interrupted once started.** Conservative. *(If false, cancellation gets cheaper and the `TOOL_CALL` column of §7 simplifies.)*
+5. **Model calls can be interrupted.** True over HTTP — though §7b exists precisely because interruption can still lose the race.
+6. **The classifier is fallible,** and its errors are made asymmetric by design (§4).
+7. **Answer volume per chat is low enough that acknowledgements are not spam.** *(If false, acknowledgements collapse into a single edited status message.)*
+8. **Single process.** The event log is the boundary where splitting across machines would go.
 
 ---
 
@@ -618,7 +620,7 @@ than hidden.
 - Worker pool, change inboxes, checkpoint handling, version checking
 - Triage over the five relationships of §4, with the confidence asymmetry, and every decision auditable
 - Delivery: attribution, acknowledgements, addenda, replacement notices
-- Three policies, seven scenarios, the full metrics table
+- Three policies, eight scenarios, the full metrics table
 - Eight executable invariants, a randomised fuzzer, and the version-check demonstration
 - Live mode: real Haiku triage and real Opus workers against a portfolio fixture
 
@@ -645,6 +647,7 @@ real system.
 - **Cross-chat pool starvation.** One very busy chat can monopolise the workers. Per-chat caps exist; fair sharing does not (§12).
 - **Dependency cycles from classifier error.** Detected and broken (§8), at the cost of weaker ordering for that pair.
 - **Unbounded chat history.** The live request set is bounded and the classifier's input is bounded by construction (§8), but a very long-lived chat will eventually need its transcript summarised.
+- **Member identity is trusted, not verified.** The system keeps one member's answers away from another (§11), but it takes the member on the inbound message at face value. Real access control belongs at the chat boundary, not here.
 - **The classifier is the weakest link.** Everything downstream depends on it relating messages to requests correctly, and that is a genuinely hard judgement. The asymmetric thresholds make its errors recoverable rather than destructive, and `--explain` makes every decision auditable — but neither makes it right.
 
 ---

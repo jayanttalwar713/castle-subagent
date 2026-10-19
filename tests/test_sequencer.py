@@ -440,3 +440,54 @@ def test_dependent_waits_for_delivery_not_merely_for_a_computed_answer():
 
     assert h.seq.requests[parent].first_delivered_at is None
     assert h.dispatches(child) == []
+
+
+# ------------------------------------------------------- member identity --
+
+
+def test_duplicate_across_members_is_not_a_duplicate():
+    """Two people asking identical words about *different* portfolios are
+    asking different questions. Fanning one answer out would answer the wrong
+    question and disclose one member's positions to another (§11)."""
+    h = Harness()
+    before = set(h.seq.requests)
+    h.send(msg("taiwan exposure?", author="ana", at=0,
+               rel=Relationship.NEW, member="ana"))
+    ana = next(iter(set(h.seq.requests) - before))
+
+    before = set(h.seq.requests)
+    h.send(msg("taiwan exposure?", author="dev", at=1,
+               rel=Relationship.DUPLICATE, target=ana, member="dev"))
+
+    created = set(h.seq.requests) - before
+    assert created, "a different member's question must get its own request"
+    assert h.seq.requests[ana].askers == ["ana"], "dev must not be attached to ana's"
+    assert len(h.dispatches()) == 2, "both questions must actually be worked on"
+
+
+def test_duplicate_within_one_member_still_pays_once():
+    """The optimisation survives the guard: two people sharing a portfolio
+    (a household, an investment club) still get one answer, fanned out."""
+    h = Harness()
+    before = set(h.seq.requests)
+    h.send(msg("taiwan exposure?", author="ana", at=0,
+               rel=Relationship.NEW, member="household-7"))
+    rid = next(iter(set(h.seq.requests) - before))
+
+    h.send(msg("exposure to taiwan?", author="cara", at=1,
+               rel=Relationship.DUPLICATE, target=rid, member="household-7"))
+
+    assert len(h.seq.requests) == 1
+    assert len(h.dispatches()) == 1
+    h.finish(rid, at=5)
+    assert set(h.delivered(DeliveryKind.ANSWER)[0].to) == {"ana", "cara"}
+
+
+def test_a_chat_with_no_member_context_behaves_as_before():
+    """None means "this chat has one shared portfolio", which is the default
+    and what every other scenario assumes."""
+    h = Harness()
+    rid = h.ask("taiwan exposure?", author="ana")
+    h.send(msg("same question", author="cara", at=1, rel=Relationship.DUPLICATE, target=rid))
+    assert len(h.seq.requests) == 1
+    assert h.seq.requests[rid].askers == ["ana", "cara"]

@@ -41,6 +41,7 @@ def msg(
     rel: Relationship = Relationship.NEW,
     target: str | None = None,
     preserves: bool = True,
+    member: str | None = None,
 ) -> Classified:
     return Classified(
         msg_id=f"m-{text[:8]}",
@@ -48,6 +49,7 @@ def msg(
         text=text,
         at=at,
         relationship=rel,
+        member=member,
         target_id=target,
         preserves_premise=preserves,
     )

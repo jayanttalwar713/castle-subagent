@@ -1628,6 +1628,7 @@
               <tr><th scope="row">5</th><td>Cancel after the draft is written &mdash; wasted-spend accounting</td></tr>
               <tr><th scope="row">6</th><td>Amendment during the final draft &mdash; the stop-signal race; the version-check demo</td></tr>
               <tr><th scope="row">7</th><td>Premise replaced mid-flight, then again after delivery &mdash; throwing work away, and the replacement notice</td></tr>
+              <tr><th scope="row">8</th><td>Two members, same words &mdash; deduplication must not cross a portfolio boundary</td></tr>
             </tbody>
           </table>
         </div>
@@ -1667,6 +1668,7 @@
             </thead>
             <tbody>
               <tr><th scope="row">Chats are independent</th><td>The Sequencer stops being per-chat, and the no-collisions property goes with it.</td></tr>
+              <tr><th scope="row">Who the chat is for is explicit, not inferred</th><td>The brief says &ldquo;a group chat&rdquo; without saying whose portfolio is being discussed, and the answer changes the design. Shared portfolio (a household, an investment club, a member and their advisor) &rarr; two people asking the same question really is one piece of work. Separate portfolios &rarr; identical words are different questions, and one answer for both would disclose one member&rsquo;s positions to another. Rather than guess, each request carries the member it is about; <code>DUPLICATE</code> requires a match. <strong>Left implicit, the deduplication in §&nbsp;04 would be a data-disclosure bug rather than an optimisation.</strong></td></tr>
               <tr><th scope="row">Within a chat, the only real ordering requirement is dependency</th><td>The thesis of §&nbsp;03, and the most important assumption here. If a compliance rule demands literal arrival order, STRICT_FIFO already exists as a policy and we pay the blocking knowingly.</td></tr>
               <tr><th scope="row">Tool calls cannot be interrupted once started</th><td>Conservative. If they can, cancellation gets cheaper and the Tool call column of §&nbsp;07 simplifies.</td></tr>
               <tr><th scope="row">Model calls can be interrupted</th><td>True over HTTP &mdash; though §&nbsp;07b exists precisely because interruption can still lose the race.</td></tr>
@@ -1696,7 +1698,7 @@
             <li>Worker pool, change inboxes, checkpoint handling, version checking</li>
             <li>Triage over the five relationships of §&nbsp;04, with the confidence asymmetry, and every decision auditable</li>
             <li>Delivery: attribution, acknowledgements, addenda, replacement notices</li>
-            <li>Three policies, seven scenarios, the full metrics table</li>
+            <li>Three policies, eight scenarios, the full metrics table</li>
             <li>Eight executable invariants, a randomised fuzzer, and the version-check demonstration</li>
             <li>Live mode: real Haiku triage and real Opus workers against a portfolio fixture</li>
           </ul>
@@ -1731,6 +1733,7 @@
         <li><strong>Cross-chat pool starvation.</strong> One very busy chat can monopolise the workers. Per-chat caps exist; fair sharing does not (§&nbsp;12).</li>
         <li><strong>Dependency cycles from classifier error.</strong> Detected and broken (§&nbsp;08), at the cost of weaker ordering for that pair.</li>
         <li><strong>Unbounded chat history.</strong> The live request set is bounded and the classifier&rsquo;s input is bounded by construction (§&nbsp;08), but a very long-lived chat will eventually need its transcript summarised.</li>
+        <li><strong>Member identity is trusted, not verified.</strong> The system keeps one member&rsquo;s answers away from another, but takes the member on the inbound message at face value. Real access control belongs at the chat boundary, not here.</li>
         <li><strong>The classifier is the weakest link.</strong> Everything downstream depends on it relating messages to requests correctly, and that is a genuinely hard judgement. The asymmetric thresholds make its errors recoverable rather than destructive, and the decision log makes every call auditable &mdash; but neither makes it right.</li>
       </ul>
     </section>

@@ -39,7 +39,10 @@ Relationships:
   NEW        An independent request. The default.
   AMEND      Changes an existing request's specification.
   CANCEL     Stop work on an existing request; no answer is owed.
-  DUPLICATE  Someone already asked this; one answer should serve both.
+  DUPLICATE  Someone already asked this; one answer should serve both. Only
+             when it is the same question about the SAME member's portfolio —
+             two people asking identical words about different portfolios are
+             asking different questions.
   REFERENCE  A new request whose specification depends on a prior request's
              ANSWER, e.g. "and the second biggest?" after "what is my biggest
              position?". Set target_id to the request it depends on.
@@ -97,13 +100,14 @@ class LLMTriage:
             f"Live requests (id · stage · asker(s) · question):\n"
             + (
                 "\n".join(
-                    f"  {r['id']} · {r['stage']} · {', '.join(r['askers'])} · {r['spec']}"
+                    f"  {r['id']} · {r['stage']} · member={r.get('member')} · "
+                    f"{', '.join(r['askers'])} · {r['spec']}"
                     + (f"\n      answered: {r['answer']}" if r.get("answer") else "")
                     for r in live
                 )
                 or "  (nothing in flight)"
             )
-            + f"\n\nNew message from {msg.author}:\n  {msg.text}\n"
+            + f"\n\nNew message from {msg.author} (member={msg.member}):\n  {msg.text}\n"
         )
 
         response = await self.client.messages.create(
@@ -145,6 +149,7 @@ class LLMTriage:
             text=msg.text,
             at=msg.at,
             relationship=effective,
+            member=msg.member,
             target_id=target,
             preserves_premise=bool(parsed["preserves_premise"]),
             confidence=confidence,

@@ -37,6 +37,8 @@ from chatsched.sim import Simulation, Work
 from chatsched.triage import InboundMessage
 
 AUTHORS = ["ana", "ben", "cara"]
+#: None = one shared portfolio for the chat; the rest are separate members.
+MEMBERS = [None, "member-a", "member-b"]
 RELATIONSHIPS = ["AMEND", "CANCEL", "DUPLICATE", "REFERENCE"]
 
 
@@ -53,6 +55,7 @@ def message_stream(draw):
     for _ in range(count):
         at += draw(st.floats(min_value=0.0, max_value=4.0, allow_nan=False, allow_infinity=False))
         author = draw(st.sampled_from(AUTHORS))
+        member = draw(st.sampled_from(MEMBERS))
 
         # Bias toward NEW so streams stay varied rather than collapsing into
         # one request that everyone amends.
@@ -65,8 +68,8 @@ def message_stream(draw):
                 draft=draw(st.floats(0.1, 1.5)),
             )
             messages.append(
-                {"at": at, "author": author, "text": f"question {label}",
-                 "rel": "NEW", "label": label}
+                {"at": at, "author": author, "member": member,
+                 "text": f"question {label}", "rel": "NEW", "label": label}
             )
             continue
 
@@ -75,6 +78,7 @@ def message_stream(draw):
         entry = {
             "at": at,
             "author": author,
+            "member": member,
             "text": f"{rel.lower()} against {target}",
             "rel": rel,
             "target": target,
@@ -102,6 +106,7 @@ def _build(raw: list[dict]) -> list[InboundMessage]:
             author=m["author"],
             text=m["text"],
             at=m["at"],
+            member=m.get("member"),
             label=m.get("label"),
             target_label=m.get("target"),
             relationship=m.get("rel", "NEW"),

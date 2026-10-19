@@ -163,6 +163,29 @@ as `NEW` merely produces a redundant answer. Only one of those is recoverable,
 so the threshold is biased toward `NEW` and destructive relationships need
 more confidence than additive ones.
 
+## Whose portfolio is it?
+
+The brief says "a group chat" without saying whose portfolio is under
+discussion, and the answer changes the design. If everyone shares one — a
+household, an investment club, a member and their advisor — then two people
+asking the same thing is one piece of work. If each has their own, identical
+words are *different* questions, and answering both with one answer would
+disclose one member's positions to another.
+
+So the assumption is made explicit rather than guessed: every request carries
+the member it is about, `DUPLICATE` requires a match, and a chat that sets no
+member is treated as having one shared context.
+
+```console
+$ python -m chatsched run --scenario two_members
+
+[   0.0s] → Ana          ACK      re: "What's my exposure to a Taiwan escalation?" — on it
+[   1.0s] → Dev          ACK      re: "What's my exposure to a Taiwan escalation?" — on it
+[   2.0s] → Cara         ACK      re: "What's my exposure to a Taiwan escalation?" — on it
+[   4.2s] → Ana, Cara    ANSWER   …     ← one answer, two askers: same portfolio
+[   5.2s] → Dev          ANSWER   …     ← his own answer: different portfolio
+```
+
 ## Layout
 
 ```
@@ -177,7 +200,7 @@ chatsched/
   sim.py          deterministic discrete-event simulator
   live.py         asyncio runner for real models
   llm.py          Haiku triage · Opus workers
-scenarios/        seven replayable fixtures
+scenarios/        eight replayable fixtures
 tests/            unit · scenario · property-based fuzz
 ```
 

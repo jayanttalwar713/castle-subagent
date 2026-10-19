@@ -53,6 +53,10 @@ class Request:
     id: str
     spec: str
     askers: list[str]
+    #: Whose portfolio this question is about. Two people asking the same
+    #: words about *different* portfolios are asking different questions —
+    #: see DESIGN.md §11. None means the chat has one shared context.
+    member: str | None
     arrival_seq: int
     created_at: float
 
@@ -141,6 +145,7 @@ class Classified:
     text: str
     at: float
     relationship: Relationship
+    member: str | None = None
     target_id: str | None = None
     preserves_premise: bool = True
     confidence: float = 1.0

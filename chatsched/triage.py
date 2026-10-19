@@ -25,6 +25,8 @@ class InboundMessage:
     author: str
     text: str
     at: float
+    #: Whose portfolio this message is about. None = the chat's shared one.
+    member: str | None = None
     #: Fixture-only: names the request this message creates, so later fixture
     #: lines can refer to it. Ignored by the LLM classifier.
     label: str | None = None
@@ -85,6 +87,7 @@ class ScriptedTriage:
             text=msg.text,
             at=msg.at,
             relationship=rel,
+            member=msg.member,
             target_id=target,
             preserves_premise=msg.preserves_premise,
             confidence=1.0,

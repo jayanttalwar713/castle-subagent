@@ -283,6 +283,7 @@ def load_scenario(path: str | Path) -> tuple[list[InboundMessage], dict[str, Wor
             author=m["author"],
             text=m["text"],
             at=float(m["at"]),
+            member=m.get("member"),
             label=m.get("label"),
             target_label=m.get("target"),
             relationship=m.get("rel", "NEW"),

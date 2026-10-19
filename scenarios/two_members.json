@@ -1,0 +1,18 @@
+{
+  "title": "Two members, same words — not the same question",
+  "notes": [
+    "Ana and Dev each have their own portfolio and ask the identical question.",
+    "Deduplicating them would answer Dev's question with Ana's numbers, which",
+    "is both wrong and a disclosure of Ana's positions to Dev. Cara shares",
+    "Ana's portfolio (same household), so her repeat *is* a real duplicate."
+  ],
+  "messages": [
+    {"at": 0.0, "author": "Ana",  "member": "ana",  "text": "What's my exposure to a Taiwan escalation?", "rel": "NEW",       "label": "ana_q"},
+    {"at": 1.0, "author": "Dev",  "member": "dev",  "text": "What's my exposure to a Taiwan escalation?", "rel": "DUPLICATE", "target": "ana_q", "label": "dev_q"},
+    {"at": 2.0, "author": "Cara", "member": "ana",  "text": "What's my exposure to Taiwan?",              "rel": "DUPLICATE", "target": "ana_q"}
+  ],
+  "work": {
+    "ana_q": { "plan": 0.4, "tool": 3.0, "draft": 0.8 },
+    "dev_q": { "plan": 0.4, "tool": 3.0, "draft": 0.8 }
+  }
+}
