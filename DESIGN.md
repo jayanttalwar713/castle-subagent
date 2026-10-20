@@ -392,9 +392,14 @@ removing its cause**, and the measurement is what made the difference visible.
 If the remaining errors ever justify it, the mechanism is characterised and
 ready; it is simply not earning its keep.
 
-The thresholds stay, because they cost little and catch the genuinely
-low-confidence tail. They are no longer load-bearing, and the doc no longer
-pretends they are.
+The thresholds stay, but it is worth being exact about what they now do.
+They run on every classification, and across 114 measured classifications they
+fired **zero times** — mean confidence is 0.939 and the lowest seen is 0.72,
+while the destructive gate sits at 0.75 and only applies to `CANCEL` and
+`IGNORE`, which never arrived that unsure. So they are not "catching the
+low-confidence tail"; on this data there is no tail to catch. They are kept as
+a cheap backstop against inputs unlike the ones measured, and nothing more.
+The work is being done by `names_target` and by the prompt.
 
 Because the classifier is the highest-risk component in the system, every
 decision it makes — proposed relationship, confidence, target, and whether a
