@@ -141,3 +141,68 @@ def test_chat_is_shared_per_context_not_written_per_case():
         assert all(c.chat == chat for c in sharing), name
         if len(sharing) > 1 and chat:
             assert len({tuple(c.chat) for c in sharing}) == 1
+
+
+# ------------------------------------- a bad response must not stop the chat --
+
+
+class BrokenClient:
+    """Returns a response that cannot be parsed — the real failure mode is a
+    verbose `reasoning` field running past max_tokens and truncating the JSON
+    mid-string, which is exactly how this bug was found."""
+
+    def __init__(self, body: str, stop_reason: str = "max_tokens") -> None:
+        outer = self
+
+        class _Messages:
+            @staticmethod
+            async def create(**kw):
+                class R:
+                    content = [type("B", (), {"type": "text", "text": body})()]
+                    stop_reason = outer.stop
+                return R()
+
+        self.stop = stop_reason
+        self.messages = _Messages()
+
+
+@pytest.mark.parametrize("body", [
+    '{"relationship": "AMEND", "target_id": "r1", "reasoning": "the member is cle',
+    "not json at all",
+    '{"relationship": "NONSENSE", "target_id": "", "confidence": 0.9}',
+    "{}",
+])
+@pytest.mark.asyncio
+async def test_an_unusable_response_degrades_to_new(body):
+    """One bad response must not raise. Raising ends the ingest loop, which
+    silently stops the entire chat being answered — far worse than a
+    redundant answer."""
+    from chatsched.model import Relationship
+
+    triage = LLMTriage(client=BrokenClient(body))
+    decision = await triage.aclassify(_msg("what's my Taiwan exposure?"), LIVE, [])
+
+    assert decision.relationship is Relationship.NEW, "NEW is the recoverable reading"
+    assert decision.fallback_applied
+    assert decision.target_id is None
+    assert decision.confidence == 0.0
+
+
+@pytest.mark.asyncio
+async def test_the_fallback_is_recorded_not_hidden():
+    """`--explain` has to show it, or a silently-degraded classifier looks
+    like a confident one."""
+    triage = LLMTriage(client=BrokenClient("truncated{"))
+    await triage.aclassify(_msg("hello"), LIVE, [])
+
+    entry = triage.decisions[-1]
+    assert entry["fallback"] is True
+    assert "unusable" in entry["reasoning"]
+
+
+def test_reasoning_is_length_capped_in_the_schema():
+    """The root cause: `reasoning` was the one unbounded field, so a verbose
+    answer could run the response past max_tokens and truncate the JSON."""
+    from chatsched.llm import TRIAGE_SCHEMA
+
+    assert TRIAGE_SCHEMA["properties"]["reasoning"]["maxLength"] <= 500

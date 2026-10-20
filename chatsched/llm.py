@@ -119,7 +119,10 @@ TRIAGE_SCHEMA = {
         "rewritten_question": {"type": "string"},
         "names_target": {"type": "boolean"},
         "confidence": {"type": "number"},
-        "reasoning": {"type": "string"},
+        # Bounded on purpose. This is the only free-text field in the
+        # schema, so it is the only one that can run the response past
+        # max_tokens and truncate the JSON mid-string.
+        "reasoning": {"type": "string", "maxLength": 400},
     },
     "required": [
         "relationship",
@@ -146,6 +149,36 @@ class LLMTriage:
         #: Every decision, so the classifier is inspectable rather than a
         #: black box. `--explain` prints this.
         self.decisions: list[dict] = []
+
+    def _fallback(self, msg: InboundMessage, why: str) -> Classified:
+        """Treat an unusable triage response as a brand-new question.
+
+        Deliberately not an exception: one bad response would otherwise end
+        the ingest loop and silently stop the whole chat being answered.
+        """
+        self.decisions.append(
+            {
+                "message": msg.text,
+                "author": msg.author,
+                "proposed": Relationship.NEW.value,
+                "used": Relationship.NEW.value,
+                "confidence": 0.0,
+                "fallback": True,
+                "target": None,
+                "reasoning": why,
+            }
+        )
+        return Classified(
+            msg_id=msg.msg_id,
+            author=msg.author,
+            text=msg.text,
+            at=msg.at,
+            relationship=Relationship.NEW,
+            member=msg.member,
+            confidence=0.0,
+            fallback_applied=True,
+            reasoning=why,
+        )
 
     #: How many preceding chat lines the classifier is shown. Bounded so the
     #: triage prompt stays O(1) in the age of the chat (§8) — the live request
@@ -182,16 +215,27 @@ class LLMTriage:
 
         response = await self.client.messages.create(
             model=TRIAGE_MODEL,
-            max_tokens=1024,
+            max_tokens=2048,
             system=TRIAGE_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
             output_config={"format": {"type": "json_schema", "schema": TRIAGE_SCHEMA}},
         )
         raw = next(b.text for b in response.content if b.type == "text")
-        parsed = json.loads(raw)
+        try:
+            parsed = json.loads(raw)
+            relationship = Relationship(parsed["relationship"])
+        except (json.JSONDecodeError, KeyError, ValueError) as exc:
+            # A truncated or malformed response must not take the chat down
+            # with it. §4's whole argument is that classifier failures should
+            # be recoverable, and the recoverable reading is always NEW: the
+            # question gets answered, nobody's work is destroyed, and the
+            # fallback is recorded rather than hidden.
+            return self._fallback(
+                msg, f"triage response unusable ({type(exc).__name__}): "
+                     f"{getattr(response, 'stop_reason', '?')}"
+            )
 
-        relationship = Relationship(parsed["relationship"])
-        confidence = float(parsed["confidence"])
+        confidence = float(parsed.get("confidence", 0.0))
         # A fallible classifier with asymmetric consequences gets an
         # asymmetric threshold (DESIGN.md §4).
         effective, fell_back = apply_confidence_bias(relationship, confidence)

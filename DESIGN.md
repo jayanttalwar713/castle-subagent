@@ -291,6 +291,30 @@ The window is capped at six messages for the reason §8 gives: the live request
 set is bounded, so this must be too, or a chat that runs all day grows its own
 classification cost without limit.
 
+### Why Haiku for triage
+
+Picking the small model for the hot path is an easy decision to make for the
+wrong reason, so it was measured rather than assumed. Running the same
+labelled set through both:
+
+| | accuracy | hard cases | destroyed | wall clock | cost / 76 calls |
+|---|---|---|---|---|---|
+| `claude-haiku-4-5` | **73/76 (96%)** | **26/28** | 2 | **61s** | **$0.11** |
+| `claude-sonnet-5` | 69/76 (91%) | 21/28 | 2 | 107s | $0.34 |
+
+The bigger model is *worse* here, and the error directions suggest why. Haiku
+misses by under-merging (`DUPLICATE`→`NEW`); Sonnet misses by relating
+messages that are not related (`NEW`→`REFERENCE`) and by reading cancels as
+chit-chat. Over-merging is the dominant failure of this task, and a model
+inclined to reason harder about how two messages *might* connect is inclined
+to do more of it.
+
+Two caveats worth stating out loud. The prompt was developed against Haiku, so
+some of the gap is fit rather than capability. And 76 classifications is a
+small sample. The defensible claim is not "Haiku is better" but **"Haiku is at
+least as good here at a third of the cost, so there is no case for upgrading"**
+— which is the decision that was actually needed.
+
 ### Classifier errors must be asymmetric by design
 
 > **Classifier** — a model whose job is to put a thing into one of a fixed set
@@ -815,6 +839,17 @@ as prose that asserts them:
 
 Everything above tests the *scheduler*. The classifier needs a different
 instrument, because its failures are judgements rather than bugs.
+
+> **The instrument itself has been wrong three times**, always in the same
+> direction — counting an error as destroyed when it was merely redundant, or
+> missing one entirely. First it ignored `NEW`→`AMEND`, the case §4 is built
+> on. Then it ignored `DUPLICATE` altogether, the failure §11 exists to
+> prevent. Then it treated "failed to cancel" as destructive, when nothing of
+> the asker's is lost — the work simply continues. Each was found by using the
+> metric for something new and noticing the number could not be right. A
+> measurement that is quietly wrong is worse than no measurement, because it
+> gets believed, so every rule in it is now under test and defined in exactly
+> one place.
 
 `python -m chatsched eval` runs 38 labelled messages — each against a
 realistic live request set, 14 of them marked genuinely ambiguous — through

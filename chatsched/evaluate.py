@@ -48,6 +48,21 @@ class Case:
     note: str
 
 
+#: Predicting one of these suppresses the message instead of answering it.
+#: CANCEL and IGNORE suppress it outright; AMEND and DUPLICATE suppress it by
+#: folding it into a request that already exists.
+SUPPRESSING = frozenset({
+    Relationship.CANCEL,
+    Relationship.IGNORE,
+    Relationship.AMEND,
+    Relationship.DUPLICATE,
+})
+
+#: Labels where the message was never going to produce an answer, so failing
+#: to act on it costs nothing that belonged to the asker.
+NOTHING_TO_LOSE = frozenset({Relationship.CANCEL, Relationship.IGNORE})
+
+
 def loses_work(used: Relationship, expected: Relationship) -> bool:
     """Does predicting `used` when the answer was `expected` lose work?
 
@@ -55,18 +70,28 @@ def loses_work(used: Relationship, expected: Relationship) -> bool:
     once inline in the threshold sweep — and the two drifted, which is how
     DUPLICATE came to be missing from one of them. A rule written down twice
     is a rule that will eventually disagree with itself.
+
+    The rule is deliberately asymmetric, because the harm is:
+
+      IGNORE predicted, CANCEL wanted   the cancel simply fails to happen.
+                                        Work continues, the asker gets an
+                                        answer they did not want, and nothing
+                                        of theirs is destroyed. Redundant.
+
+      CANCEL predicted, IGNORE wanted   chit-chat kills a live request.
+                                        Destructive.
+
+    Treating those two as the same thing over-counted destroyed questions —
+    the third time this metric has been wrong in the same direction, which is
+    the best argument in this file for keeping it under test.
     """
     if used is expected:
         return False
-    # CANCEL and IGNORE suppress the request outright; AMEND and DUPLICATE
-    # suppress it by folding it into one that already exists. All four are
-    # silent from the asker's point of view.
-    return used in (
-        Relationship.CANCEL,
-        Relationship.IGNORE,
-        Relationship.AMEND,
-        Relationship.DUPLICATE,
-    )
+    if used is Relationship.IGNORE:
+        # Dropping a message only destroys something if the message was going
+        # to produce an answer. A cancel was not.
+        return expected not in NOTHING_TO_LOSE
+    return used in SUPPRESSING
 
 
 @dataclass

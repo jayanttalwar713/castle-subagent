@@ -1512,6 +1512,44 @@
         own classification cost without limit.
       </p>
 
+      <h3>Why Haiku for triage</h3>
+
+      <p>
+        Picking the small model for the hot path is an easy decision to make for the wrong
+        reason, so it was measured rather than assumed. The same labelled set through both:
+      </p>
+
+      <div class="wide">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">Model</th><th scope="col">Accuracy</th><th scope="col">Hard cases</th><th scope="col">Destroyed</th><th scope="col">Wall clock</th><th scope="col">Cost / 76 calls</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">claude-haiku-4-5</th><td><strong>73/76 (96%)</strong></td><td><strong>26/28</strong></td><td>2</td><td><strong>61s</strong></td><td><strong>$0.11</strong></td></tr>
+              <tr><th scope="row">claude-sonnet-5</th><td>69/76 (91%)</td><td>21/28</td><td>2</td><td>107s</td><td>$0.34</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p>
+        The bigger model is <em>worse</em> here, and the error directions suggest why.
+        Haiku misses by under-merging (<code>DUPLICATE</code>&rarr;<code>NEW</code>);
+        Sonnet misses by relating messages that are not related
+        (<code>NEW</code>&rarr;<code>REFERENCE</code>) and by reading cancels as chit-chat.
+        Over-merging is the dominant failure of this task, and a model inclined to reason
+        harder about how two messages <em>might</em> connect is inclined to do more of it.
+      </p>
+
+      <div class="note">
+        Two caveats worth stating out loud. The prompt was developed against Haiku, so some
+        of the gap is fit rather than capability. And 76 classifications is a small sample.
+        The defensible claim is not &ldquo;Haiku is better&rdquo; but <strong>&ldquo;Haiku
+        is at least as good here at a third of the cost, so there is no case for
+        upgrading&rdquo;</strong> &mdash; which is the decision that was actually needed.
+      </div>
+
       <h3>Classifier errors must be asymmetric by design</h3>
 
       <div class="note">
@@ -2450,6 +2488,19 @@
         Everything else tests the <em>scheduler</em>. The classifier needs a different
         instrument, because its failures are judgements rather than bugs.
       </p>
+
+      <div class="note">
+        <strong>The instrument itself has been wrong three times</strong>, always in the
+        same direction &mdash; counting an error as destroyed when it was merely redundant,
+        or missing one entirely. First it ignored <code>NEW</code>&rarr;<code>AMEND</code>,
+        the case §&nbsp;04 is built on. Then it ignored <code>DUPLICATE</code> altogether,
+        the failure §&nbsp;11 exists to prevent. Then it treated &ldquo;failed to
+        cancel&rdquo; as destructive, when nothing of the asker's is lost &mdash; the work
+        simply continues. Each was found by using the metric for something new and noticing
+        the number could not be right. A measurement that is quietly wrong is worse than no
+        measurement, because it gets believed, so every rule in it is now under test and
+        defined in exactly one place.
+      </div>
 
       <p>
         <code>python -m chatsched eval</code> runs 38 labelled messages &mdash; each

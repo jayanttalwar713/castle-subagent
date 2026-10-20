@@ -252,3 +252,39 @@ def test_an_unresolvable_target_is_not_reported_as_a_disclosure():
     """Absence of evidence is not evidence of a leak — a metric that guesses
     would be worse than one that abstains."""
     assert not _dup_outcome("ana", "dev", target="nonexistent").disclosure_error
+
+
+# ----------------------------- failing to cancel is not destroying anything --
+
+
+def test_ignoring_a_cancel_is_redundant_not_destructive():
+    """The cancel fails to happen, so the work continues and the asker gets an
+    answer they did not want. Annoying, visible, and nothing of theirs is
+    lost. Counting it as destroyed over-stated the error rate."""
+    o = outcome(Relationship.CANCEL, Relationship.IGNORE)
+    assert not o.destructive_error
+    assert o.redundant_error
+
+
+def test_but_reading_chit_chat_as_a_cancel_still_is_destructive():
+    """The other direction kills a live request. Same pair of labels,
+    opposite harm — which is why the rule cannot be symmetric."""
+    o = outcome(Relationship.IGNORE, Relationship.CANCEL)
+    assert o.destructive_error
+
+
+@pytest.mark.parametrize("expected", [Relationship.NEW, Relationship.REFERENCE,
+                                      Relationship.AMEND, Relationship.DUPLICATE])
+def test_ignoring_a_real_request_is_still_destructive(expected):
+    """The case IGNORE is in the destructive set for: a question that
+    deserved an answer, silently dropped."""
+    assert outcome(expected, Relationship.IGNORE).destructive_error
+
+
+def test_the_asymmetry_is_only_for_ignore():
+    """CANCEL predicted on anything that is not a cancel kills running work,
+    regardless of what the message actually was."""
+    for expected in Relationship:
+        if expected is Relationship.CANCEL:
+            continue
+        assert outcome(expected, Relationship.CANCEL).destructive_error, expected

@@ -281,3 +281,40 @@ async def test_the_model_clients_are_not_left_on_the_sdk_default_timeout():
 
     assert TRIAGE_TIMEOUT_S <= 30, "ingestion is sequential; a slow triage blocks every later message"
     assert WORKER_TIMEOUT_S <= 180
+
+
+@pytest.mark.asyncio
+async def test_one_triage_failure_does_not_abandon_the_rest_of_the_chat(monkeypatch):
+    """A timeout on message two used to end the ingest loop, so messages
+    three and four were never read — silently. Workers already degrade
+    rather than die; triage now does too."""
+    calls = {"n": 0}
+
+    class FlakyTriage(FakeTriage):
+        async def aclassify(self, msg, live_view, recent=()):
+            calls["n"] += 1
+            if calls["n"] == 2:
+                raise TimeoutError("transient")
+            return await super().aclassify(msg, live_view, recent)
+
+    monkeypatch.setattr(llm_module, "LLMTriage", lambda *a, **k: FlakyTriage())
+    monkeypatch.setattr(llm_module, "LLMWorker", lambda *a, **k: FakeWorker())
+
+    code = await run([message(f"question {i}", label=f"q{i}") for i in range(4)])
+    assert calls["n"] == 4, "every message must still be classified"
+    assert code == 0, "one flaky message is not a failed run"
+
+
+async def test_but_failing_on_every_message_is_still_a_failed_run(monkeypatch):
+    """The other half. Absorbing per-message failures must not let a bad API
+    key produce a clean-looking report."""
+
+    class DeadTriage(FakeTriage):
+        async def aclassify(self, msg, live_view, recent=()):
+            raise RuntimeError("401 invalid x-api-key")
+
+    monkeypatch.setattr(llm_module, "LLMTriage", lambda *a, **k: DeadTriage())
+    monkeypatch.setattr(llm_module, "LLMWorker", lambda *a, **k: FakeWorker())
+
+    code = await run([message("anything", label="q")])
+    assert code == 2, "a run where triage never worked must not report success"

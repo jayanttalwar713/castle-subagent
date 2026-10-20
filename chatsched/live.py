@@ -23,11 +23,13 @@ from . import invariants, metrics
 from .delivery import Transcript
 from .model import (
     Abort,
+    Classified,
     Completed,
     Deliver,
     Dispatch,
     Failed,
     Inject,
+    Relationship,
     Stage,
     StageChanged,
 )
@@ -146,6 +148,8 @@ async def _main(
             Completed(run.request_id, run.version, text, tokens, now(), cmd.as_of)
         )
 
+    triage_failures: list[Exception] = []
+
     async def _ingest() -> None:
         """Replay the chat against a real clock, classifying as we go."""
         # What has already been said, in order. Triage needs it to tell a
@@ -157,7 +161,23 @@ async def _main(
             if delay > 0:
                 await asyncio.sleep(delay)
             live = seq.live_view()
-            decision = await triage.aclassify(msg, live, said)
+            try:
+                decision = await triage.aclassify(msg, live, said)
+            except Exception as exc:
+                # One bad message must not abandon the rest of the chat. A
+                # timeout on message three used to end the ingest loop, so
+                # messages four onward were never read at all — silently.
+                # Workers already degrade this way; triage should too.
+                triage_failures.append(exc)
+                print(f"[{now():6.1f}s] ! triage failed on {msg.author}'s "
+                      f"message ({type(exc).__name__}); treating it as a new "
+                      f"question", flush=True)
+                decision = Classified(
+                    msg_id=msg.msg_id, author=msg.author, text=msg.text,
+                    at=now(), relationship=Relationship.NEW, member=msg.member,
+                    confidence=0.0, fallback_applied=True,
+                    reasoning=f"triage unavailable: {type(exc).__name__}",
+                )
             said.append(msg)
             print(
                 f"[{now():6.1f}s] ← {msg.author:<14} {'':17} {msg.text}",
@@ -198,6 +218,14 @@ async def _main(
 
     if not seq.requests:
         print("\nno requests were created — nothing ran.", flush=True)
+        return 2
+
+    if messages and len(triage_failures) == len(messages):
+        # Every single message failed. That is not a flaky call, it is a
+        # broken configuration — a bad key, a wrong model name — and the run
+        # must not report success just because the fallback kept it moving.
+        print(f"\ntriage failed on every message ({triage_failures[0]!r}); "
+              "the run is not meaningful.", flush=True)
         return 2
 
     violations = invariants.check(seq, transcript, policy, pool_size)
