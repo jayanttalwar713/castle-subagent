@@ -200,6 +200,26 @@ def cmd_eval(args) -> int:
     return 0
 
 
+def cmd_quality(args) -> int:
+    """Everything else verifies the scheduling. This asks whether the answer
+    was true — see DESIGN.md §10."""
+    import asyncio
+
+    from .quality import load_cases, render, run_quality
+
+    _load_dotenv()
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        print("ANTHROPIC_API_KEY is not set; this needs real worker calls.",
+              file=sys.stderr)
+        return 2
+
+    cases = load_cases()
+    print(f"asking a real worker {len(cases)} questions with checkable answers…")
+    results = asyncio.run(run_quality(cases, use_judge=not args.no_judge))
+    print(render(results))
+    return 0 if all(r.ok for r in results) else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="chatsched")
     sub = parser.add_subparsers(dest="cmd", required=True)
@@ -250,6 +270,13 @@ def main(argv: list[str] | None = None) -> int:
     p_eval.add_argument("--quiet", action="store_true",
                         help="summary only, without the per-case disagreements")
     p_eval.set_defaults(func=cmd_eval)
+
+    p_q = sub.add_parser("quality",
+                         help="measure whether the ANSWERS are any good (§10)")
+    p_q.add_argument("--no-judge", action="store_true",
+                     help="skip the one check that needs a model; the "
+                          "arithmetic checks still run")
+    p_q.set_defaults(func=cmd_quality)
 
     args = parser.parse_args(argv)
     return args.func(args)

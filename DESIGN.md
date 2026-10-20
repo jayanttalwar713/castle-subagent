@@ -872,6 +872,44 @@ agreement with me, not ground truth.
 What it found is in §4, and it changed the design — which is the point of
 building it rather than asserting the thresholds were fine.
 
+### Measuring the answers, not just the scheduling
+
+Everything above tests the *scheduler*: did the right work run, in the right
+order, with nothing lost. None of it asks whether the answer was **true**. A
+worker that confidently reports the wrong exposure passes all nine invariants.
+
+`python -m chatsched quality` asks a real worker a set of questions whose
+answers can be checked, and applies three tests in descending order of how
+much they can be trusted:
+
+| Check | How | Can it be wrong? |
+|---|---|---|
+| **grounded** | every ticker named must be a position this member actually holds | No — set arithmetic |
+| **covers** | the figures the question turns on are present | No — computed from the fixture |
+| **responsive** | does the text answer the question asked? | **Yes** — this one needs a judge |
+
+**The ordering is the argument.** Reaching for a model to grade something you
+can compute is how you end up with a measurement harder to trust than the
+thing it measures. Only the third check needs a judge, and it is scoped as
+narrowly as possible — one yes/no question about meaning, explicitly told not
+to opine on the figures, because those are verified by arithmetic.
+
+The sharpest case is a disclosure test disguised as a portfolio question. Dev
+is asked about Taiwan exposure; he holds no semiconductors. Any mention of
+`NVDA`, `TSM` or `QQQ` as *his* position is Ana's book appearing in his chat.
+§11 stops the Sequencer routing one member's answer to another; this checks
+the *content* did not leak either.
+
+Current state: **6/6 grounded, 6/6 covering, 6/6 responsive.** The checks are
+proven able to fail by feeding them answers built to break them — a leaked
+position, a hallucinated holding, a missing figure — because a check nobody
+has watched fail is indistinguishable from one that always returns true.
+
+Two honest limits. Six questions is a small set. And "grounded" catches a
+ticker that is not held, not a *wrong number* next to a ticker that is —
+reconciling every figure in free prose is a harder problem and is not
+attempted.
+
 ### Randomised testing
 
 > **Property-based testing** (or *fuzzing*) — instead of writing example cases

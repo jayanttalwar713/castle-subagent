@@ -2548,6 +2548,64 @@
         than asserting the thresholds were fine.
       </div>
 
+      <h3>Measuring the answers, not just the scheduling</h3>
+
+      <p>
+        Everything above tests the <em>scheduler</em>: did the right work run, in the right
+        order, with nothing lost. None of it asks whether the answer was <strong>true</strong>.
+        A worker that confidently reports the wrong exposure passes all nine invariants.
+      </p>
+
+      <p>
+        <code>python -m chatsched quality</code> asks a real worker a set of questions whose
+        answers can be checked, and applies three tests in descending order of how much they
+        can be trusted:
+      </p>
+
+      <div class="wide">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr><th scope="col">Check</th><th scope="col">How</th><th scope="col">Can it be wrong?</th></tr>
+            </thead>
+            <tbody>
+              <tr><th scope="row">grounded</th><td>every ticker named must be a position this member actually holds</td><td>No &mdash; set arithmetic</td></tr>
+              <tr><th scope="row">covers</th><td>the figures the question turns on are present</td><td>No &mdash; computed from the fixture</td></tr>
+              <tr><th scope="row">responsive</th><td>does the text answer the question asked?</td><td><strong>Yes</strong> &mdash; needs a judge</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p>
+        <strong>The ordering is the argument.</strong> Reaching for a model to grade
+        something you can compute is how you end up with a measurement harder to trust than
+        the thing it measures. Only the third check needs a judge, and it is scoped as
+        narrowly as possible &mdash; one yes/no question about meaning, explicitly told not
+        to opine on the figures, because those are verified by arithmetic.
+      </p>
+
+      <div class="note">
+        The sharpest case is a disclosure test disguised as a portfolio question. Dev is
+        asked about Taiwan exposure; he holds no semiconductors. Any mention of
+        <code>NVDA</code>, <code>TSM</code> or <code>QQQ</code> as <em>his</em> position is
+        Ana's book appearing in his chat. §&nbsp;11 stops the Sequencer routing one
+        member's answer to another; this checks the <em>content</em> did not leak either.
+      </div>
+
+      <p>
+        Current state: <strong>6/6 grounded, 6/6 covering, 6/6 responsive.</strong> The
+        checks are proven able to fail by feeding them answers built to break them &mdash; a
+        leaked position, a hallucinated holding, a missing figure &mdash; because a check
+        nobody has watched fail is indistinguishable from one that always returns true.
+      </p>
+
+      <p>
+        Two honest limits. Six questions is a small set. And &ldquo;grounded&rdquo; catches a
+        ticker that is not held, not a <em>wrong number</em> next to a ticker that is &mdash;
+        reconciling every figure in free prose is a harder problem and is not attempted.
+      </p>
+
       <h3>Randomised testing</h3>
 
       <div class="note">

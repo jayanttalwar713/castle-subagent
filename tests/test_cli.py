@@ -153,3 +153,11 @@ def test_recover_refuses_an_empty_log(tmp_path, capsys):
     empty.write_text("")
     assert cli.main(["recover", str(empty)]) == 2
     assert "no events" in capsys.readouterr().err
+
+
+def test_quality_refuses_without_a_key(monkeypatch, capsys):
+    """Same contract as `eval`: exit 2 rather than an auth traceback."""
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    monkeypatch.setattr(cli, "_load_dotenv", lambda *a, **k: None)
+    assert cli.main(["quality"]) == 2
+    assert "ANTHROPIC_API_KEY" in capsys.readouterr().err

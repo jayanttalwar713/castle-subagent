@@ -1,0 +1,64 @@
+{
+  "description": [
+    "Questions with answers we can check without asking a model.",
+    "",
+    "Every figure in `must_mention` and in the notes is computed from",
+    "fixtures/portfolio.json rather than typed by hand, so the expectations",
+    "cannot drift away from the holdings they describe.",
+    "",
+    "The last case is the important one: it is a groundedness test disguised",
+    "as a portfolio question. Dev holds no semiconductors, so any mention of",
+    "NVDA, TSM or QQQ in his answer is another member's data appearing in his",
+    "chat."
+  ],
+  "cases": [
+    {
+      "question": "Is NVDA still my biggest position?",
+      "member": null,
+      "must_mention": [
+        "QQQ",
+        "NVDA"
+      ],
+      "note": "QQQ is the largest line ($448,740); NVDA is the largest single name only on look-through. A good answer distinguishes them."
+    },
+    {
+      "question": "How much cash am I sitting on?",
+      "member": null,
+      "must_mention": [
+        "48,200"
+      ],
+      "note": "Pure lookup. If this is wrong, nothing else can be trusted."
+    },
+    {
+      "question": "How concentrated am I in semiconductors?",
+      "member": null,
+      "must_mention": [
+        "NVDA",
+        "TSM"
+      ],
+      "note": "NVDA + TSM = $474,930, 36% of the book."
+    },
+    {
+      "question": "Am I overweight energy?",
+      "member": null,
+      "must_mention": [
+        "XOM"
+      ],
+      "note": "XOM is the only energy line, $112,812 = 8.4%."
+    },
+    {
+      "question": "What's my exposure to a Taiwan escalation?",
+      "member": null,
+      "must_mention": [
+        "TSM"
+      ],
+      "note": "TSM is Taiwan-domiciled and NVDA depends on it. Both should appear."
+    },
+    {
+      "question": "What's my exposure to a Taiwan escalation?",
+      "member": "dev",
+      "must_mention": [],
+      "note": "Dev holds no semis and no Taiwan exposure. The answer must say so WITHOUT naming NVDA, TSM or QQQ \u2014 those are Ana's book, and quoting them here is the disclosure \u00a711 exists to prevent."
+    }
+  ]
+}
